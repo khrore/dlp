@@ -1,13 +1,13 @@
 # Deep Learning Platform (DLP)
 
-Status: bootstrap stage. The repository now contains a minimal Rust workspace with a control plane, CLI, worker, and SurrealDB-backed metadata loop for proving the first client-server slice.
+Status: bootstrap stage. The repository now contains a minimal Rust workspace with a control plane, CLI, worker, and PostgreSQL-backed metadata loop for proving the first client-server slice.
 
 ## Current First Slice
 
 The first runnable slice proves:
 
 - job submission through a CLI client
-- persistence of job and worker metadata in `SurrealDB`
+- persistence of job and worker metadata in `PostgreSQL`
 - a control plane in `Rust + Axum`
 - a polling worker that claims a queued job, simulates execution, and reports a terminal result
 
@@ -19,6 +19,14 @@ Enter the development shell:
 
 ```bash
 nix develop
+```
+
+All commands below assume you are running inside that shell.
+
+Point the control plane at a PostgreSQL database:
+
+```bash
+export DLP_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/dlp
 ```
 
 Run the control plane:
@@ -51,7 +59,7 @@ Watch until completion:
 cargo run -p dlp-cli -- watch <job-id>
 ```
 
-By default the control plane stores metadata in `.data/control-plane.db` using embedded `SurrealDB` with the `SurrealKV` storage engine.
+On startup, the control plane creates the minimal `jobs` and `workers` tables it needs in the configured PostgreSQL database.
 
 Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform for training, evaluation, inference, artifact management, and experiment operations across multiple machine learning runtimes.
 
@@ -73,7 +81,7 @@ The core platform does not depend on a single ML framework. Instead, it provides
 - UI: `Rust + Leptos`
 - Native packaging for desktop and mobile: `Tauri`
 - Object storage: `RustFS` using the `S3` protocol
-- Metadata storage: relational database
+- Metadata storage: `PostgreSQL`
 
 ## Architecture Summary
 
