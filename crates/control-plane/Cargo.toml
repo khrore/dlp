@@ -9,10 +9,11 @@ anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 chrono.workspace = true
+dlp-migration = { path = "../migration" }
 dlp-shared = { path = "../shared" }
 serde.workspace = true
 serde_json.workspace = true
-sqlx.workspace = true
+sea-orm.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

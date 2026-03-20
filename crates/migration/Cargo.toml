@@ -1,0 +1,13 @@
+[package]
+name = "dlp-migration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "dlp_migration"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait.workspace = true
+sea-orm-migration.workspace = true

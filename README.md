@@ -59,7 +59,7 @@ Watch until completion:
 cargo run -p dlp-cli -- watch <job-id>
 ```
 
-On startup, the control plane creates the minimal `jobs` and `workers` tables it needs in the configured PostgreSQL database.
+On startup, the control plane applies the SeaORM migrations for the minimal `jobs` and `workers` tables before serving traffic.
 
 Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform for training, evaluation, inference, artifact management, and experiment operations across multiple machine learning runtimes.
 
