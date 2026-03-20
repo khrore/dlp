@@ -34,6 +34,8 @@
               "rustfmt"
             ])
             pkgs.rust-analyzer-nightly
+            pkgs.coreutils
+            pkgs.pixi
           ];
         };
       }

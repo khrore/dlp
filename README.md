@@ -1,5 +1,58 @@
 # Deep Learning Platform (DLP)
 
+Status: bootstrap stage. The repository now contains a minimal Rust workspace with a control plane, CLI, worker, and SurrealDB-backed metadata loop for proving the first client-server slice.
+
+## Current First Slice
+
+The first runnable slice proves:
+
+- job submission through a CLI client
+- persistence of job and worker metadata in `SurrealDB`
+- a control plane in `Rust + Axum`
+- a polling worker that claims a queued job, simulates execution, and reports a terminal result
+
+This is intentionally not a full ML runtime yet. It validates the control-plane and execution-plane contract first.
+
+## Quick Start
+
+Enter the development shell:
+
+```bash
+nix develop
+```
+
+Run the control plane:
+
+```bash
+cargo run -p dlp-control-plane
+```
+
+In another shell, start a worker:
+
+```bash
+cargo run -p dlp-worker
+```
+
+Submit a job:
+
+```bash
+cargo run -p dlp-cli -- submit --capability cpu --payload '{"prompt":"hello"}'
+```
+
+Check job status:
+
+```bash
+cargo run -p dlp-cli -- status <job-id>
+```
+
+Watch until completion:
+
+```bash
+cargo run -p dlp-cli -- watch <job-id>
+```
+
+By default the control plane stores metadata in `.data/control-plane.db` using embedded `SurrealDB` with the `SurrealKV` storage engine.
+
 Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform for training, evaluation, inference, artifact management, and experiment operations across multiple machine learning runtimes.
 
 The core platform does not depend on a single ML framework. Instead, it provides a Rust-based control plane and a set of pluggable execution workers for frameworks such as PyTorch, JAX, MLX, and MAX/Mojo.
