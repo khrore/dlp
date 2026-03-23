@@ -1,0 +1,13 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+client-sdk = { path = "../client-sdk" }
+console_error_panic_hook.workspace = true
+leptos.workspace = true
+

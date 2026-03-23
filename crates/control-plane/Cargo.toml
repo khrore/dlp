@@ -1,0 +1,15 @@
+[package]
+name = "control-plane"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum.workspace = true
+clap.workspace = true
+client-sdk = { path = "../client-sdk" }
+tokio.workspace = true
+
+[dev-dependencies]
+tower.workspace = true
+serde_json.workspace = true
+

@@ -1,0 +1,14 @@
+[package]
+name = "dlp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+client-sdk = { path = "../client-sdk" }
+tokio.workspace = true
+
+[dev-dependencies]
+control-plane = { path = "../control-plane" }
+
