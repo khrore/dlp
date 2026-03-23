@@ -1,0 +1,19 @@
+# Docs: https://rust-lang.github.io/rustfmt
+
+# Specifies which edition is used by the parser.
+edition = "2024"
+
+# The width threshold for an array element to be considered "short".
+short_array_element_width_threshold = 5 # default = 10
+
+# Maximum line length for single line if-else expressions
+single_line_if_else_max_width = 0 # default = 50
+
+# Maximum line length for single line let-else statements.
+single_line_let_else_max_width = 0 # default = 50
+
+# Use field initialize shorthand if possible.
+use_field_init_shorthand = true # default = false
+
+# Replace uses of the try! macro by the ? shorthand
+use_try_shorthand = true # default = false

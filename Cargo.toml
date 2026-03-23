@@ -8,17 +8,287 @@ members = [
 resolver = "2"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 version = "0.1.0"
 
 [workspace.dependencies]
 anyhow = "1.0"
-axum = { version = "0.7", features = ["macros"] }
-clap = { version = "4.5", features = ["derive", "env"] }
+axum = { version = "0.8", features = ["macros"] }
+clap = { version = "4.6", features = ["derive", "env"] }
 console_error_panic_hook = "0.1"
-leptos = { version = "0.6", features = ["csr"] }
+leptos = { version = "0.8", features = ["csr"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.5"
 
+# Включение разрешенных по умолчанию линтов https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+[lints.rust]
+# Обнаруживает полные пути, которые начинаются с имени модуля вместо crate, self или имени внешнего крейта
+absolute-paths-not-starting-with-crate = "warn"
+# Путаница между отрицательным литералом и отрицанием, которое не является частью литерала
+ambiguous-negative-literals = "warn"
+# Обнаруживает случаи, когда замыкание возвращает async-блок
+closure-returning-async-block = "warn"
+# Срабатывает при реализации `Deref` для `dyn SubTrait` с типом `dyn SuperTrait` в качестве типа `Output`
+deref-into-dyn-supertrait = "warn"
+# Обнаруживает ненужные границы времени жизни, которые могут быть выведены автоматически
+explicit-outlives-requirements = "warn"
+# Временное значение с существенной деструкцией генерируется в правой части if let и предлагает переписать на match
+if-let-rescope = "warn"
+# Использование точного захвата use<...> не требуется
+impl-trait-redundant-captures = "warn"
+# Отсутствует ключевое слово unsafe в extern-декларациях
+missing-unsafe-on-extern = "warn"
+# Импорты, которые избыточны из-за того, что уже были импортированы
+redundant-imports = "warn"
+# Параметры времени жизни, которые избыточны, потому что равны другому именованному времени жизни
+redundant-lifetimes = "warn"
+# Времена жизни, которые используются только один раз
+single-use-lifetimes = "warn"
+# Поиск значений, сгенерированных в хвостовом выражении, которые запускают пользовательский деструктор `Drop`
+tail-expr-drop-order = "warn"
+# Обнаруживает тривиальные приведения типов, которые могут быть заменены на принуждение типов
+trivial-casts = "warn"
+# Тривиальные числовые приведения типов, которые могут быть удалены
+trivial-numeric-casts = "warn"
+# Обнаруживает случаи, когда привязки бесполезны, потому что имеют тип единицы `()` в качестве выведенного типа
+unit-bindings = "warn"
+# Обнаруживает перечисления с сильно различающимися размерами вариантов
+variant-size-differences = "warn"
+# Использование скрытых параметров времени жизни
+elided-lifetimes-in-paths = "warn"
+# Пересылка предупреждений от линкера. Отключено: транзитивные нативные крейты (например zstd_sys)
+# могут быть собраны под новую macOS, из-за чего ld выводит «built for newer than being linked» — на работу не влияет.
+linker-messages = "allow"
+# Отсутствие реализаций `fmt::Debug` для публичных типов
+missing-debug-implementations = "warn"
+
+# Unsafe
+# Обнаруживает отсутствие ключевого слова unsafe для атрибутов, считающихся небезопасными
+unsafe-attr-outside-unsafe = "warn"
+# Использование #![feature]
+unstable-features = "warn"
+# Использование `unsafe`-кода и других потенциально небезопасных конструкций вроде `no_mangle`, `export_name` и `link_section`
+unsafe-code = "deny"
+# Обнаруживает unsafe-операции в unsafe-функциях без явного unsafe-блока
+unsafe-op-in-unsafe-fn = "deny"
+# Отсутствие документации для публичных элементов
+missing_docs = "warn"
+
+# Rust 2024
+# Небезопасные функции, используемые как безопасные
+deprecated-safe-2024 = "warn"
+# Использование фрагментов выражений в макросах при миграции на редакцию 2024
+edition-2024-expr-fragment-specifier = "warn"
+# Поведение захвата времени жизни будет отличаться в редакции 2024
+impl-trait-overcaptures = "warn"
+# Ключевые слова, используемые `as` идентификаторы
+keyword-idents-2024 = "warn"
+# Паттерны, значение которых изменится в редакции Rust 2024
+rust-2024-incompatible-pat = "warn"
+# Методы трейтов, которые неоднозначны с трейтами, добавленными в прелюдию в будущих редакциях
+rust-2024-prelude-collisions = "warn"
+
+# Неиспользуемое
+# Обнаруживает зависимости крейтов, которые никогда не используются
+unused-crate-dependencies = "deny"
+# Защита от элементов extern crate, которые никогда не используются
+unused-extern-crates = "warn"
+# Ненужные фигурные скобки вокруг импортируемого элемента
+unused-import-braces = "warn"
+# Обнаруживает параметры времени жизни, которые никогда не используются
+unused-lifetimes = "warn"
+# Обнаруживает правила макросов, которые не были использованы
+unused-macro-rules = "warn"
+# Обнаруживает излишне квалифицированные имена
+unused-qualifications = "warn"
+
+# Макросы
+# Обнаруживает использование атрибута macro_use
+macro-use-extern-crate = "warn"
+# Возможное неправильное использование мета-переменных в определениях макросов
+meta-variable-misuse = "warn"
+
+# Линтинг clippy https://rust-lang.github.io/rust-clippy/stable/index.html
+[lints.clippy]
+# Во многих пакетах используются разные версии одних и тех же пакетов, исправление слишком трудозатратно
+multiple_crate_versions = "allow"
+# Улучшение `Cargo.toml`
+cargo = { level = "warn", priority = -1 }
+# Упрощение кода
+complexity = { level = "warn", priority = -1 }
+# Глубокая проверка кода
+pedantic = { level = "warn", priority = -1 }
+# Повышение производительности
+perf = { level = "warn", priority = -1 }
+# Написание идиоматичного кода
+style = { level = "warn", priority = -1 }
+# Похоже на correctness, но возможно, что код намеренно написан таким образом
+suspicious = { level = "warn", priority = -1 }
+# Самые новые правила, которые все еще находятся в стадии разработки.
+nursery = { level = "warn", priority = -1 }
+
+# Индивидуальная конфигурация правил Clippy
+
+# Nursery группа
+#
+# Предпочтение функциональному стилю над императивным при работе с Option
+# Разрешено, так как в некоторых случаях if let/else читабельнее, чем map_or_else
+option_if_let_else = { level = "allow" }
+# Проверка на то, что future может быть безопасно отправлена между потоками (Send)
+# Разрешено для всего проекта, так как Actix-web использует однопоточную модель акторов:
+# каждый запрос обрабатывается на одном потоке от начала до конца и никогда не перемещается
+# между потоками. ServiceRequest и HttpRequest содержат Rc<...> (не Send), но это безопасно
+# благодаря архитектурным гарантиям Actix-web. Использование Rc вместо Arc повышает производительность.
+future_not_send = { level = "allow" }
+# Проверяет, есть ли у строковых литералов аргументы форматирования вне макросов,
+# использующих их (например, format!).
+# Разрашено так как является забагованным
+literal_string_with_formatting_args = { level = "allow" }
+
+# Restriction группа
+#
+# Использованиe Result::expect
+expect_used = { level = "deny" }
+# Использованиe std::process::exit
+exit = { level = "deny" }
+# Использованиe get().unwrap()
+get_unwrap = { level = "deny" }
+# Использованиe panic!
+panic = { level = "deny" }
+# Использованиe panic в функциях, возвращающих Result
+panic_in_result_fn = { level = "deny" }
+# Вывод в stderr
+print_stderr = { level = "deny" }
+# Вывод в stdout
+print_stdout = { level = "deny" }
+# unwrap в функциях, возвращающих Result
+unwrap_in_result = { level = "deny" }
+# Использованиe unwrap
+unwrap_used = { level = "deny" }
+# Игнорированиe ошибки в map_err
+map_err_ignore = { level = "warn" }
+# Использованиe map с неиспользуемым аргументом над диапазонами
+map_with_unused_argument_over_ranges = { level = "warn" }
+# Использование приведения типов через as
+as_conversions = { level = "warn" }
+# Приведение типов as к заполнителю типа _
+as_underscore = { level = "warn" }
+# Приведение типов через as к указателю на неопределенный тип
+as_pointer_underscore = { level = "warn" }
+# Использование #[cfg(not(test))] вместо #[cfg(test)]
+cfg_not_test = { level = "warn" }
+# Разыменование через создание среза вместо явного разыменования
+deref_by_slicing = { level = "warn" }
+# Цепочки if-else без финального else
+else_if_without_else = { level = "warn" }
+# Реализация Error для типов, содержащих "Error" в имени
+error_impl_error = { level = "warn" }
+# Модификаторы видимости на уровне полей структуры
+field_scoped_visibility_modifiers = { level = "warn" }
+# Вызов is_file() для Path вместо проверки метаданных
+filetype_is_file = { level = "warn" }
+# Сравнение чисел с плавающей точкой с константами
+float_cmp_const = { level = "warn" }
+# Приведение указателя на функцию к числовому типу
+fn_to_numeric_cast_any = { level = "warn" }
+# Паттерн if { Some(x) } else { None }, который можно упростить
+if_then_some_else_none = { level = "warn" }
+# Использование impl Trait в параметрах функций
+impl_trait_in_params = { level = "warn" }
+# Бесконечные циклы, которые можно заменить на явные конструкции
+infinite_loop = { level = "warn" }
+# Итерирование по HashMap или HashSet (недетерминированный порядок)
+iter_over_hash_type = { level = "warn" }
+# Смешанное чтение и запись в одном выражении
+mixed_read_write_in_expression = { level = "warn" }
+# Несколько inherent impl-блоков для одного типа
+multiple_inherent_impl = { level = "warn" }
+# Использование Mutex для защиты атомарных типов
+mutex_atomic = { level = "warn" }
+# Использование Mutex для защиты целочисленных типов
+mutex_integer = { level = "warn" }
+# Использование Rc с типами буфера (Vec, String и т.д.)
+rc_buffer = { level = "warn" }
+# Использование Rc с Mutex (лучше использовать Arc)
+rc_mutex = { level = "warn" }
+# Индексирование строк, которое может вызвать панику
+string_slice = { level = "warn" }
+# Использование ^ (XOR) вместо функции pow для возведения в степень
+suspicious_xor_used_as_pow = { level = "warn" }
+# Использование неразрешенных символов в идентификаторах
+disallowed_script_idents = { level = "warn" }
+
+# Использование макроса dbg!
+dbg_macro = { level = "warn" }
+# Десятичное представление литералов
+decimal_literal_representation = { level = "warn" }
+# Пустая реализация Drop
+empty_drop = { level = "warn" }
+# Пустые варианты enum с фигурными скобками
+empty_enum_variants_with_brackets = { level = "warn" }
+# Пустые структуры с фигурными скобками
+empty_structs_with_brackets = { level = "warn" }
+# Целочисленное деление, которое может потерять остаток
+integer_division = { level = "warn" }
+# Использование операций деления или остатка с целыми числами
+integer_division_remainder_used = { level = "warn" }
+# Включение больших файлов через include_bytes! или include_str!
+large_include_file = { level = "warn" }
+# Отсутствие атрибута #[inline] в публичных элементах
+missing_inline_in_public_items = { level = "warn" }
+# Использование операции остатка от деления (%), которая может вызвать панику
+modulo_arithmetic = { level = "warn" }
+# Ненужное использование сырых строк
+needless_raw_strings = { level = "warn" }
+# Несколько небезопасных операций в одном unsafe-блоке
+multiple_unsafe_ops_per_block = { level = "warn" }
+# Предложения использовать NonZero типы
+non_zero_suggestions = { level = "warn" }
+# Структуры с частично публичными полями
+partial_pub_fields = { level = "warn" }
+# Инициализация PathBuf с последующим push вместо прямого создания
+pathbuf_init_then_push = { level = "warn" }
+# Использование pub(in ...) вместо сокращения pub(crate) или pub(super)
+pub_without_shorthand = { level = "warn" }
+# Избыточные аннотации типов
+redundant_type_annotations = { level = "warn" }
+# Использование .. в полностью связанных структурах
+rest_pat_in_fully_bound_structs = { level = "warn" }
+# Использование return с then вместо and_then
+return_and_then = { level = "warn" }
+# Точка с запятой внутри блока вместо после блока
+semicolon_inside_block = { level = "warn" }
+# Суффиксы литералов, отделенные от значения
+separated_literal_suffix = { level = "warn" }
+# Использование односимвольных имен для времен жизни
+single_char_lifetime_names = { level = "warn" }
+# Преобразование &str в String через to_string вместо to_owned
+str_to_string = { level = "warn" }
+# Использование оператора + для конкатенации строк
+string_add = { level = "warn" }
+# Использование chars().any() вместо contains() для строковых литералов
+string_lit_chars_any = { level = "warn" }
+# Тесты вне модуля tests
+tests_outside_test_module = { level = "warn" }
+# Использование макроса todo!
+todo = { level = "warn" }
+# Использование try!() вместо оператора ?
+try_err = { level = "warn" }
+# Использование unimplemented!
+unimplemented = { level = "warn" }
+# Ненужные комментарии безопасности
+unnecessary_safety_comment = { level = "warn" }
+# Ненужная документация безопасности
+unnecessary_safety_doc = { level = "warn" }
+# Ненужный импорт self
+unnecessary_self_imports = { level = "warn" }
+# Ненужные шаблоны полей (field: _)
+unneeded_field_pattern = { level = "warn" }
+# Использование unreachable!
+unreachable = { level = "warn" }
+# Суффиксы литералов без разделения от значения
+unseparated_literal_suffix = { level = "warn" }
+# Атрибуты #[allow] без указания причины
+allow_attributes_without_reason = { level = "warn" }
