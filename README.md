@@ -24,10 +24,32 @@ The core platform does not depend on a single ML framework. Instead, it provides
 
 ## Architecture Summary
 
-The platform is split into two major layers:
+The platform is split into three major layers:
 
-1. Control plane
-2. Execution plane
+1. Interface layer
+2. Control plane
+3. Execution plane
+
+### Interface Layer
+
+The interface layer provides multiple operator-facing entry points over the same platform services and domain model.
+
+It should include:
+
+- a command-style `dlp` CLI for scripting, automation, and CI/CD usage
+- an interactive shell / `REPL` for exploratory operations, debugging, and guided workflows
+- a GUI for desktop, mobile, and web-based operations
+
+These interfaces should not duplicate orchestration logic. They should all talk to the same application API and use the same domain concepts such as jobs, workers, artifacts, datasets, and experiments.
+
+Recommended internal split:
+
+- `cli`: command parser, flags, output formatting, and non-interactive command execution
+- `repl`: session management, command history, contextual prompts, and interactive helpers
+- `gui`: visual workflows, dashboards, forms, and monitoring views
+- shared client SDK or application service layer: authentication, request models, transport, error handling, and common business actions
+
+This keeps user interaction concerns separate from backend orchestration while allowing all operator surfaces to evolve together.
 
 ### Control Plane
 
@@ -169,15 +191,24 @@ This split keeps binary storage scalable while preserving queryable operational 
 
 ## Client Applications
 
-The primary UI should be built with `Leptos`.
+The platform should expose three first-class client modes:
+
+- command-style CLI
+- interactive shell / `REPL`
+- GUI
+
+The primary GUI should be built with `Leptos`.
 
 Recommended client model:
 
+- shared domain client and API bindings used by CLI, REPL, and GUI
+- CLI commands for automation-friendly workflows such as `submit`, `status`, `logs`, `artifacts`, and `workers`
+- REPL commands that reuse the CLI command model but add session state, shortcuts, discovery, and guided interaction
 - shared UI and app logic in Leptos
 - native desktop and mobile packaging through `Tauri`
 - optional browser-delivered web interface for operations and administration
 
-This gives a mostly shared frontend while keeping deployment flexible across major platforms.
+This gives one platform with multiple operator experiences instead of separate products with diverging behavior.
 
 ## Recommended Service Boundaries
 
@@ -187,10 +218,23 @@ An initial service layout can be:
 - `scheduler`: job placement and dispatch
 - `artifact-service`: artifact metadata and storage integration
 - `worker-gateway`: worker registration, heartbeats, and command delivery
+- `client-sdk`: shared API bindings, auth flows, transport, and domain operations for all clients
+- `cli`: command-style interface built on the shared client SDK
+- `repl`: interactive shell built on the shared client SDK and CLI command primitives
 - `ui`: Leptos frontend packaged with Tauri
 - `workers/*`: framework-specific runtime workers
 
 These may start as modules in a single deployable backend and split into separate services later if scale requires it.
+
+## Interaction Model
+
+Each user-facing surface serves a different operational mode:
+
+- CLI: deterministic commands, scripts, CI jobs, and machine-readable output
+- REPL: iterative investigation, admin workflows, live inspection, and operator assistance
+- GUI: dashboards, forms, visual monitoring, and multi-step workflows
+
+All three should map to the same backend capabilities. If a job can be submitted in the GUI, it should also be possible through the CLI and REPL unless there is a deliberate product restriction.
 
 ## Non-Goals for the Core
 
@@ -212,6 +256,8 @@ Version 1 should focus on:
 - basic metrics and logs
 - one training backend, likely `PyTorch`
 - one inference backend, potentially `MAX`
+- a command-style CLI
+- a basic interactive shell / `REPL`
 - desktop and web operator UI
 
 This is the smallest credible product that preserves the long-term architecture.
