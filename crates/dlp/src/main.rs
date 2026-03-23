@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use client_sdk::DlpClient;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -108,7 +108,7 @@ fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_interactive_command, InteractiveCommand};
+    use super::{InteractiveCommand, parse_interactive_command};
 
     #[test]
     fn parses_known_interactive_commands() {
@@ -132,4 +132,3 @@ mod tests {
         assert!(error.to_string().contains("unknown command"));
     }
 }
-

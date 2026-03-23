@@ -1,4 +1,4 @@
-use axum::{routing::get, Json, Router};
+use axum::{Json, Router, routing::get};
 use client_sdk::HealthResponse;
 
 pub fn app() -> Router {
@@ -11,13 +11,14 @@ async fn health() -> Json<HealthResponse> {
 
 #[cfg(test)]
 mod tests {
-    use super::app;
     use axum::{
-        body::{to_bytes, Body},
+        body::{Body, to_bytes},
         http::{Request, StatusCode},
     };
     use client_sdk::HealthResponse;
     use tower::util::ServiceExt;
+
+    use super::app;
 
     #[tokio::test]
     async fn health_endpoint_returns_expected_payload() {
@@ -40,4 +41,3 @@ mod tests {
         assert_eq!(payload, HealthResponse::ok("control-plane"));
     }
 }
-

@@ -26,7 +26,7 @@
       {
         devShells.default = pkgs.mkShell {
           packages = [
-            (pkgs.fenix.stable.withComponents [
+            (pkgs.fenix.complete.withComponents [
               "cargo"
               "clippy"
               "rust-src"

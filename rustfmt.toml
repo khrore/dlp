@@ -13,7 +13,49 @@ single_line_if_else_max_width = 0 # default = 50
 single_line_let_else_max_width = 0 # default = 50
 
 # Use field initialize shorthand if possible.
-use_field_init_shorthand = true # default = false
+use_field_init_shorthand = true
 
 # Replace uses of the try! macro by the ? shorthand
-use_try_shorthand = true # default = false
+use_try_shorthand = true
+
+# Unstable
+
+# Replace strings of _ wildcards by a single .. in tuple patterns
+condense_wildcard_suffixes = true
+
+# Format code snippet included in doc comments.
+format_code_in_doc_comments = true
+
+# Format the metavariable matching patterns in macros.
+format_macro_matchers = true
+
+# Format string literals where necessary
+format_strings = true
+
+# Controls how imports are structured in use statements. Imports will be merged or split to the configured level of granularity.
+imports_granularity = "Crate"
+
+# Convert /* */ comments to // comments where possible
+normalize_comments = true
+
+# Convert #![doc] and #[doc] attributes to //! and /// doc comments.
+normalize_doc_attributes = true
+
+# When structs, slices, arrays, and block/array-like macros are used as the last argument in an expression list, 
+# allow them to overflow (like blocks/closures) instead of being indented on a new line.
+overflow_delimited_expr = true
+
+# Reorder impl items. type and const are put first, then macros and methods.
+reorder_impl_items = true
+
+# Controls the strategy for how consecutive imports are grouped together.
+group_imports = "StdExternalCrate"
+
+# The maximum diff of width between struct fields to be aligned with each other.
+struct_field_align_threshold = 20
+
+# Enable unstable features on the unstable channel.
+unstable_features = true
+
+# Break comments to fit on the line
+wrap_comments = true

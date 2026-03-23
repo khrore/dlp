@@ -147,16 +147,9 @@ nursery = { level = "warn", priority = -1 }
 # Prefer functional style over imperative style when working with `Option`
 # Allowed because in some cases `if let/else` is more readable than `map_or_else`
 option_if_let_else = { level = "allow" }
-# Checks whether a future can be safely sent between threads (`Send`)
-# Allowed for the whole project because Actix-web uses a single-threaded actor model:
-# each request is handled on one thread from start to finish and is never moved
-# between threads. `ServiceRequest` and `HttpRequest` contain `Rc<...>` values (not `Send`), but this is safe
-# due to Actix-web's architectural guarantees. Using `Rc` instead of `Arc` improves performance.
-future_not_send = { level = "allow" }
 # Checks whether string literals contain formatting arguments outside the macros
 # that use them (for example, `format!`).
-# Allowed because the lint is buggy
-literal_string_with_formatting_args = { level = "allow" }
+literal_string_with_formatting_args = { level = "warn" }
 
 # Restriction group
 #

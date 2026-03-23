@@ -1,5 +1,6 @@
-use clap::Parser;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+use clap::Parser;
 use tokio::net::TcpListener;
 
 #[derive(Debug, Parser)]
@@ -23,4 +24,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-

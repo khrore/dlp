@@ -1,17 +1,20 @@
+use std::{
+    error::Error,
+    fmt::{Display, Formatter},
+};
+
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HealthResponse {
-    pub status: String,
+    pub status:  String,
     pub service: String,
 }
 
 impl HealthResponse {
     pub fn ok(service: impl Into<String>) -> Self {
         Self {
-            status: "ok".to_string(),
+            status:  "ok".to_string(),
             service: service.into(),
         }
     }
@@ -120,13 +123,9 @@ mod tests {
 
     #[test]
     fn health_ok_response_uses_expected_defaults() {
-        assert_eq!(
-            HealthResponse::ok("control-plane"),
-            HealthResponse {
-                status: "ok".to_string(),
-                service: "control-plane".to_string(),
-            }
-        );
+        assert_eq!(HealthResponse::ok("control-plane"), HealthResponse {
+            status:  "ok".to_string(),
+            service: "control-plane".to_string(),
+        });
     }
 }
-
