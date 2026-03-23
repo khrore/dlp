@@ -40,9 +40,6 @@
             pkgs.rust-analyzer-nightly
             pkgs.trunk
           ];
-          shellHook = ''
-            export NO_COLOR=false
-          '';
         };
       }
     );
