@@ -22,19 +22,27 @@
           inherit system;
           overlays = [ fenix.overlays.default ];
         };
+        rustToolchain = pkgs.fenix.combine [
+          (pkgs.fenix.complete.withComponents [
+            "cargo"
+            "clippy"
+            "rust-src"
+            "rustc"
+            "rustfmt"
+          ])
+          pkgs.fenix.targets.wasm32-unknown-unknown.latest.rust-std
+        ];
       in
       {
         devShells.default = pkgs.mkShell {
           packages = [
-            (pkgs.fenix.complete.withComponents [
-              "cargo"
-              "clippy"
-              "rust-src"
-              "rustc"
-              "rustfmt"
-            ])
+            rustToolchain
             pkgs.rust-analyzer-nightly
+            pkgs.trunk
           ];
+          shellHook = ''
+            export NO_COLOR=false
+          '';
         };
       }
     );
