@@ -22,273 +22,348 @@ serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.5"
 
-# Включение разрешенных по умолчанию линтов https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
-[lints.rust]
-# Обнаруживает полные пути, которые начинаются с имени модуля вместо crate, self или имени внешнего крейта
+# Enable allowed-by-default lints https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+[workspace.lints.rust]
+# Detects absolute paths that start with a module name instead of crate, self, or an external crate name
 absolute-paths-not-starting-with-crate = "warn"
-# Путаница между отрицательным литералом и отрицанием, которое не является частью литерала
+# Detects ambiguity between a negative literal and negation that is not part of the literal
 ambiguous-negative-literals = "warn"
-# Обнаруживает случаи, когда замыкание возвращает async-блок
+# Detects cases where a closure returns an async block
 closure-returning-async-block = "warn"
-# Срабатывает при реализации `Deref` для `dyn SubTrait` с типом `dyn SuperTrait` в качестве типа `Output`
+# Triggers when `Deref` is implemented for `dyn SubTrait` with `dyn SuperTrait` as the `Output` type
 deref-into-dyn-supertrait = "warn"
-# Обнаруживает ненужные границы времени жизни, которые могут быть выведены автоматически
+# Detects unnecessary lifetime bounds that can be inferred automatically
 explicit-outlives-requirements = "warn"
-# Временное значение с существенной деструкцией генерируется в правой части if let и предлагает переписать на match
+# Detects a temporary with significant destruction on the right side of `if let` and suggests rewriting it as `match`
 if-let-rescope = "warn"
-# Использование точного захвата use<...> не требуется
+# Detects unnecessary use of precise capture `use<...>`
 impl-trait-redundant-captures = "warn"
-# Отсутствует ключевое слово unsafe в extern-декларациях
-missing-unsafe-on-extern = "warn"
-# Импорты, которые избыточны из-за того, что уже были импортированы
+# Detects imports that are redundant because they were already imported
 redundant-imports = "warn"
-# Параметры времени жизни, которые избыточны, потому что равны другому именованному времени жизни
+# Detects lifetime parameters that are redundant because they are equal to another named lifetime
 redundant-lifetimes = "warn"
-# Времена жизни, которые используются только один раз
+# Detects lifetimes that are used only once
 single-use-lifetimes = "warn"
-# Поиск значений, сгенерированных в хвостовом выражении, которые запускают пользовательский деструктор `Drop`
+# Detects values created in tail expressions that trigger a custom `Drop` destructor
 tail-expr-drop-order = "warn"
-# Обнаруживает тривиальные приведения типов, которые могут быть заменены на принуждение типов
+# Detects trivial casts that can be replaced with coercions
 trivial-casts = "warn"
-# Тривиальные числовые приведения типов, которые могут быть удалены
+# Detects trivial numeric casts that can be removed
 trivial-numeric-casts = "warn"
-# Обнаруживает случаи, когда привязки бесполезны, потому что имеют тип единицы `()` в качестве выведенного типа
+# Detects bindings that are useless because their inferred type is the unit type `()`
 unit-bindings = "warn"
-# Обнаруживает перечисления с сильно различающимися размерами вариантов
+# Detects enums with significantly different variant sizes
 variant-size-differences = "warn"
-# Использование скрытых параметров времени жизни
+# Use of elided lifetime parameters
 elided-lifetimes-in-paths = "warn"
-# Пересылка предупреждений от линкера. Отключено: транзитивные нативные крейты (например zstd_sys)
-# могут быть собраны под новую macOS, из-за чего ld выводит «built for newer than being linked» — на работу не влияет.
-linker-messages = "allow"
-# Отсутствие реализаций `fmt::Debug` для публичных типов
+# Forward linker warnings
+linker-messages = "warn"
+# Missing `fmt::Debug` implementations for public types
 missing-debug-implementations = "warn"
+# Checks for statements
+let-underscore-drop = "warn"
+# Detects non-ASCII identifiers.
+non-ascii-idents = "warn"
+# The unnameable_types lint detects types for which you can get objects of that type, but cannot name the type itself.
+unnameable-types = "warn"
+# triggers for pub items not reachable from other crates - that means neither directly accessible
+unreachable-pub = "warn"
 
 # Unsafe
-# Обнаруживает отсутствие ключевого слова unsafe для атрибутов, считающихся небезопасными
+# Detects missing `unsafe` on attributes considered unsafe
 unsafe-attr-outside-unsafe = "warn"
-# Использование #![feature]
+# Use of `#![feature]`
 unstable-features = "warn"
-# Использование `unsafe`-кода и других потенциально небезопасных конструкций вроде `no_mangle`, `export_name` и `link_section`
+# Use of `unsafe` code and other potentially unsafe constructs such as `no_mangle`, `export_name`, and `link_section`
 unsafe-code = "deny"
-# Обнаруживает unsafe-операции в unsafe-функциях без явного unsafe-блока
+# Detects unsafe operations inside unsafe functions without an explicit unsafe block
 unsafe-op-in-unsafe-fn = "deny"
-# Отсутствие документации для публичных элементов
+# Missing documentation for public items
 missing_docs = "warn"
+# The ffi_unwind_calls lint detects calls to foreign functions or function pointers with C-unwind or other FFI-unwind ABIs.
+ffi-unwind-calls = "warn"
+# Missing `unsafe` in extern declarations
+missing-unsafe-on-extern = "warn"
 
 # Rust 2024
-# Небезопасные функции, используемые как безопасные
+# Unsafe functions used as if they were safe
 deprecated-safe-2024 = "warn"
-# Использование фрагментов выражений в макросах при миграции на редакцию 2024
+# Use of expression fragments in macros when migrating to the 2024 edition
 edition-2024-expr-fragment-specifier = "warn"
-# Поведение захвата времени жизни будет отличаться в редакции 2024
+# Lifetime capture behavior will differ in the 2024 edition
 impl-trait-overcaptures = "warn"
-# Ключевые слова, используемые `as` идентификаторы
+# Keywords used as identifiers
 keyword-idents-2024 = "warn"
-# Паттерны, значение которых изменится в редакции Rust 2024
+# Patterns whose meaning changes in Rust 2024
 rust-2024-incompatible-pat = "warn"
-# Методы трейтов, которые неоднозначны с трейтами, добавленными в прелюдию в будущих редакциях
+# Trait methods that become ambiguous with traits added to the prelude in future editions
 rust-2024-prelude-collisions = "warn"
+# detects `#` tokens that will be parsed as part of a guarded string literal in Rust 2024.
+rust-2024-guarded-string-incompatible-syntax = "warn"
 
-# Неиспользуемое
-# Обнаруживает зависимости крейтов, которые никогда не используются
+# Unused
+# Detects crate dependencies that are never used
 unused-crate-dependencies = "deny"
-# Защита от элементов extern crate, которые никогда не используются
+# Protects against `extern crate` items that are never used
 unused-extern-crates = "warn"
-# Ненужные фигурные скобки вокруг импортируемого элемента
+# Unnecessary braces around imported items
 unused-import-braces = "warn"
-# Обнаруживает параметры времени жизни, которые никогда не используются
+# Detects lifetime parameters that are never used
 unused-lifetimes = "warn"
-# Обнаруживает правила макросов, которые не были использованы
+# Detects macro rules that were never used
 unused-macro-rules = "warn"
-# Обнаруживает излишне квалифицированные имена
+# Detects unnecessarily qualified names
 unused-qualifications = "warn"
 
-# Макросы
-# Обнаруживает использование атрибута macro_use
+# Macros
+# Detects use of the `macro_use` attribute
 macro-use-extern-crate = "warn"
-# Возможное неправильное использование мета-переменных в определениях макросов
+# Possible misuse of meta-variables in macro definitions
 meta-variable-misuse = "warn"
 
-# Линтинг clippy https://rust-lang.github.io/rust-clippy/stable/index.html
-[lints.clippy]
-# Во многих пакетах используются разные версии одних и тех же пакетов, исправление слишком трудозатратно
+# Clippy linting https://rust-lang.github.io/rust-clippy/stable/index.html
+[workspace.lints.clippy]
+# Many packages use different versions of the same crates; fixing that is too costly
 multiple_crate_versions = "allow"
-# Улучшение `Cargo.toml`
+# Improve `Cargo.toml`
 cargo = { level = "warn", priority = -1 }
-# Упрощение кода
+# Simplify code
 complexity = { level = "warn", priority = -1 }
-# Глубокая проверка кода
+# Deep code inspection
 pedantic = { level = "warn", priority = -1 }
-# Повышение производительности
+# Improve performance
 perf = { level = "warn", priority = -1 }
-# Написание идиоматичного кода
+# Encourage idiomatic code
 style = { level = "warn", priority = -1 }
-# Похоже на correctness, но возможно, что код намеренно написан таким образом
+# Similar to correctness, but the code may be intentionally written this way
 suspicious = { level = "warn", priority = -1 }
-# Самые новые правила, которые все еще находятся в стадии разработки.
+# The newest rules that are still under development
 nursery = { level = "warn", priority = -1 }
 
-# Индивидуальная конфигурация правил Clippy
+# Custom Clippy rule configuration
 
-# Nursery группа
+# Nursery group
 #
-# Предпочтение функциональному стилю над императивным при работе с Option
-# Разрешено, так как в некоторых случаях if let/else читабельнее, чем map_or_else
+# Prefer functional style over imperative style when working with `Option`
+# Allowed because in some cases `if let/else` is more readable than `map_or_else`
 option_if_let_else = { level = "allow" }
-# Проверка на то, что future может быть безопасно отправлена между потоками (Send)
-# Разрешено для всего проекта, так как Actix-web использует однопоточную модель акторов:
-# каждый запрос обрабатывается на одном потоке от начала до конца и никогда не перемещается
-# между потоками. ServiceRequest и HttpRequest содержат Rc<...> (не Send), но это безопасно
-# благодаря архитектурным гарантиям Actix-web. Использование Rc вместо Arc повышает производительность.
+# Checks whether a future can be safely sent between threads (`Send`)
+# Allowed for the whole project because Actix-web uses a single-threaded actor model:
+# each request is handled on one thread from start to finish and is never moved
+# between threads. `ServiceRequest` and `HttpRequest` contain `Rc<...>` values (not `Send`), but this is safe
+# due to Actix-web's architectural guarantees. Using `Rc` instead of `Arc` improves performance.
 future_not_send = { level = "allow" }
-# Проверяет, есть ли у строковых литералов аргументы форматирования вне макросов,
-# использующих их (например, format!).
-# Разрашено так как является забагованным
+# Checks whether string literals contain formatting arguments outside the macros
+# that use them (for example, `format!`).
+# Allowed because the lint is buggy
 literal_string_with_formatting_args = { level = "allow" }
 
-# Restriction группа
+# Restriction group
 #
-# Использованиe Result::expect
+# Use of `Result::expect`
 expect_used = { level = "deny" }
-# Использованиe std::process::exit
+# Use of `std::process::exit`
 exit = { level = "deny" }
-# Использованиe get().unwrap()
+# Use of `get().unwrap()`
 get_unwrap = { level = "deny" }
-# Использованиe panic!
+# Use of `panic!`
 panic = { level = "deny" }
-# Использованиe panic в функциях, возвращающих Result
+# Use of `panic!` in functions that return `Result`
 panic_in_result_fn = { level = "deny" }
-# Вывод в stderr
+# Output to stderr
 print_stderr = { level = "deny" }
-# Вывод в stdout
+# Output to stdout
 print_stdout = { level = "deny" }
-# unwrap в функциях, возвращающих Result
+# `unwrap` in functions that return `Result`
 unwrap_in_result = { level = "deny" }
-# Использованиe unwrap
+# Use of `unwrap`
 unwrap_used = { level = "deny" }
-# Игнорированиe ошибки в map_err
+# Ignoring errors in `map_err`
 map_err_ignore = { level = "warn" }
-# Использованиe map с неиспользуемым аргументом над диапазонами
+# Use of `map` with an unused argument over ranges
 map_with_unused_argument_over_ranges = { level = "warn" }
-# Использование приведения типов через as
+# Use of casts via `as`
 as_conversions = { level = "warn" }
-# Приведение типов as к заполнителю типа _
+# `as` cast to the placeholder type `_`
 as_underscore = { level = "warn" }
-# Приведение типов через as к указателю на неопределенный тип
+# `as` cast to a pointer to an inferred type
 as_pointer_underscore = { level = "warn" }
-# Использование #[cfg(not(test))] вместо #[cfg(test)]
+# Use of `#[cfg(not(test))]` instead of `#[cfg(test)]`
 cfg_not_test = { level = "warn" }
-# Разыменование через создание среза вместо явного разыменования
+# Dereferencing by creating a slice instead of explicit dereferencing
 deref_by_slicing = { level = "warn" }
-# Цепочки if-else без финального else
+# `if-else` chains without a final `else`
 else_if_without_else = { level = "warn" }
-# Реализация Error для типов, содержащих "Error" в имени
+# Implementing `Error` for types whose names contain "Error"
 error_impl_error = { level = "warn" }
-# Модификаторы видимости на уровне полей структуры
+# Visibility modifiers at struct field level
 field_scoped_visibility_modifiers = { level = "warn" }
-# Вызов is_file() для Path вместо проверки метаданных
+# Calling `is_file()` on `Path` instead of checking metadata
 filetype_is_file = { level = "warn" }
-# Сравнение чисел с плавающей точкой с константами
+# Comparing floating-point numbers with constants
 float_cmp_const = { level = "warn" }
-# Приведение указателя на функцию к числовому типу
+# Casting a function pointer to a numeric type
 fn_to_numeric_cast_any = { level = "warn" }
-# Паттерн if { Some(x) } else { None }, который можно упростить
+# `if { Some(x) } else { None }` pattern that can be simplified
 if_then_some_else_none = { level = "warn" }
-# Использование impl Trait в параметрах функций
+# Use of `impl Trait` in function parameters
 impl_trait_in_params = { level = "warn" }
-# Бесконечные циклы, которые можно заменить на явные конструкции
+# Infinite loops that can be replaced with explicit constructs
 infinite_loop = { level = "warn" }
-# Итерирование по HashMap или HashSet (недетерминированный порядок)
+# Iterating over `HashMap` or `HashSet` (non-deterministic order)
 iter_over_hash_type = { level = "warn" }
-# Смешанное чтение и запись в одном выражении
+# Mixed reading and writing in one expression
 mixed_read_write_in_expression = { level = "warn" }
-# Несколько inherent impl-блоков для одного типа
+# Multiple inherent impl blocks for one type
 multiple_inherent_impl = { level = "warn" }
-# Использование Mutex для защиты атомарных типов
+# Use of `Mutex` to guard atomic types
 mutex_atomic = { level = "warn" }
-# Использование Mutex для защиты целочисленных типов
+# Use of `Mutex` to guard integer types
 mutex_integer = { level = "warn" }
-# Использование Rc с типами буфера (Vec, String и т.д.)
+# Use of `Rc` with buffer types (`Vec`, `String`, etc.)
 rc_buffer = { level = "warn" }
-# Использование Rc с Mutex (лучше использовать Arc)
+# Use of `Rc` with `Mutex` (prefer `Arc`)
 rc_mutex = { level = "warn" }
-# Индексирование строк, которое может вызвать панику
+# String indexing that can panic
 string_slice = { level = "warn" }
-# Использование ^ (XOR) вместо функции pow для возведения в степень
+# Use of `^` (XOR) instead of `pow` for exponentiation
 suspicious_xor_used_as_pow = { level = "warn" }
-# Использование неразрешенных символов в идентификаторах
-disallowed_script_idents = { level = "warn" }
-
-# Использование макроса dbg!
+# Use of the `dbg!` macro
 dbg_macro = { level = "warn" }
-# Десятичное представление литералов
+# Decimal representation of literals
 decimal_literal_representation = { level = "warn" }
-# Пустая реализация Drop
+# Empty `Drop` implementation
 empty_drop = { level = "warn" }
-# Пустые варианты enum с фигурными скобками
+# Empty enum variants with braces
 empty_enum_variants_with_brackets = { level = "warn" }
-# Пустые структуры с фигурными скобками
+# Empty structs with braces
 empty_structs_with_brackets = { level = "warn" }
-# Целочисленное деление, которое может потерять остаток
+# Integer division that can lose a remainder
 integer_division = { level = "warn" }
-# Использование операций деления или остатка с целыми числами
+# Use of division or remainder operations with integers
 integer_division_remainder_used = { level = "warn" }
-# Включение больших файлов через include_bytes! или include_str!
+# Including large files via `include_bytes!` or `include_str!`
 large_include_file = { level = "warn" }
-# Отсутствие атрибута #[inline] в публичных элементах
+# Missing `#[inline]` on public items
 missing_inline_in_public_items = { level = "warn" }
-# Использование операции остатка от деления (%), которая может вызвать панику
+# Use of the remainder operator (`%`) that can panic
 modulo_arithmetic = { level = "warn" }
-# Ненужное использование сырых строк
+# Unnecessary use of raw strings
 needless_raw_strings = { level = "warn" }
-# Несколько небезопасных операций в одном unsafe-блоке
+# Multiple unsafe operations in one unsafe block
 multiple_unsafe_ops_per_block = { level = "warn" }
-# Предложения использовать NonZero типы
+# Suggestions to use `NonZero` types
 non_zero_suggestions = { level = "warn" }
-# Структуры с частично публичными полями
+# Structs with partially public fields
 partial_pub_fields = { level = "warn" }
-# Инициализация PathBuf с последующим push вместо прямого создания
+# Initializing `PathBuf` and then calling `push` instead of creating it directly
 pathbuf_init_then_push = { level = "warn" }
-# Использование pub(in ...) вместо сокращения pub(crate) или pub(super)
+# Use of `pub(in ...)` instead of the shorthand `pub(crate)` or `pub(super)`
 pub_without_shorthand = { level = "warn" }
-# Избыточные аннотации типов
+# Redundant type annotations
 redundant_type_annotations = { level = "warn" }
-# Использование .. в полностью связанных структурах
+# Use of `..` in fully bound structs
 rest_pat_in_fully_bound_structs = { level = "warn" }
-# Использование return с then вместо and_then
+# Use of `return` with `then` instead of `and_then`
 return_and_then = { level = "warn" }
-# Точка с запятой внутри блока вместо после блока
+# Semicolon inside a block instead of after the block
 semicolon_inside_block = { level = "warn" }
-# Суффиксы литералов, отделенные от значения
+# Literal suffixes separated from the value
 separated_literal_suffix = { level = "warn" }
-# Использование односимвольных имен для времен жизни
+# Use of single-character lifetime names
 single_char_lifetime_names = { level = "warn" }
-# Преобразование &str в String через to_string вместо to_owned
+# Converting `&str` to `String` via `to_string` instead of `to_owned`
 str_to_string = { level = "warn" }
-# Использование оператора + для конкатенации строк
+# Use of the `+` operator for string concatenation
 string_add = { level = "warn" }
-# Использование chars().any() вместо contains() для строковых литералов
+# Use of `chars().any()` instead of `contains()` for string literals
 string_lit_chars_any = { level = "warn" }
-# Тесты вне модуля tests
+# Tests outside the `tests` module
 tests_outside_test_module = { level = "warn" }
-# Использование макроса todo!
+# Use of the `todo!` macro
 todo = { level = "warn" }
-# Использование try!() вместо оператора ?
+# Use of `try!()` instead of the `?` operator
 try_err = { level = "warn" }
-# Использование unimplemented!
+# Use of `unimplemented!`
 unimplemented = { level = "warn" }
-# Ненужные комментарии безопасности
+# Unnecessary safety comments
 unnecessary_safety_comment = { level = "warn" }
-# Ненужная документация безопасности
+# Unnecessary safety documentation
 unnecessary_safety_doc = { level = "warn" }
-# Ненужный импорт self
+# Unnecessary `self` import
 unnecessary_self_imports = { level = "warn" }
-# Ненужные шаблоны полей (field: _)
+# Unnecessary field patterns (`field: _`)
 unneeded_field_pattern = { level = "warn" }
-# Использование unreachable!
+# Use of `unreachable!`
 unreachable = { level = "warn" }
-# Суффиксы литералов без разделения от значения
+# Literal suffixes not separated from the value
 unseparated_literal_suffix = { level = "warn" }
-# Атрибуты #[allow] без указания причины
+# `#[allow]` attributes without a reason
 allow_attributes_without_reason = { level = "warn" }
+#
+# Experemental
+#
+# Checks for usage of items through absolute paths
+absolute_paths = { level = "warn" }
+# Checks for usage of the #[allow] attribute and suggests replacing it with the #[expect] attribute
+allow_attributes = { level = "warn" }
+# Confirms that items are sorted in source files as per configuration.
+arbitrary_source_item_ordering = { level = "warn" }
+# Checks any kind of arithmetic operation of any type.
+arithmetic_side_effects  = { level = "warn" }
+# Checks for assert!(r.is_ok()) or assert!(r.is_err()) calls.
+assertions_on_result_states = { level = "warn" }
+# Checks for usage of .clone() on a ref-counted pointer,
+clone_on_ref_ptr = { level = "warn" }
+# Checks usage of std::fs::create_dir and suggest using std::fs::create_dir_all instead.
+create_dir = { level = "warn" }
+# Checks for usage of unicode scripts other than those explicitly allowed by the lint config.
+disallowed_script_idents = { level = "warn" }
+# Checks if included files in doc comments are included only for cfg(doc)
+doc_include_without_cfg = { level = "warn" }
+# Checks for doc comments whose paragraphs do not end with a period or another punctuation mark
+doc_paragraphs_missing_punctuation = { level = "warn" }
+# Checks for usage of indexing or slicing that may panic at runtime.
+indexing_slicing = { level = "warn" }
+# Checks for whole number float literals that cannot be represented as the underlying type without loss.
+lossy_float_literal = { level = "warn" }
+# Checks for usage of std::mem::forget(t) where t is Drop or has a field that implements Drop.
+mem_forget = { level = "warn" }
+# Checks for identifiers which consist of a single character (or fewer than the configured threshold).
+min_ident_chars = { level = "warn" }
+# Checks assertions without a custom panic message.
+missing_assert_message = { level = "warn" }
+# Warns if there is missing documentation for any private documentable item.
+missing_docs_in_private_items = { level = "warn" }
+# Checks if a provided method is used implicitly by a trait implementation.
+missing_trait_methods = { level = "warn" }
+# Detects public item names that are prefixed or suffixed by the containing public module’s name.
+module_name_repetitions = { level = "warn" }
+# Restricts the usage of pub use ...
+pub_use = { level = "warn" }
+# Checks for test functions (functions annotated with #[test]) that are prefixed with test_ which is redundant.
+redundant_test_prefix = { level = "warn" }
+# Checks for usages of the ref keyword.
+ref_patterns = { level = "warn" }
+# Lints when the name of function parameters from trait impl is different than its default implementation.
+renamed_function_params = { level = "warn" }
+# It lints if a struct has two methods with the same name: one from a trait, another not from a trait.
+same_name_method = { level = "warn" }
+# Checks that module layout uses only mod.rs files.
+self_named_module_files = { level = "warn" }
+# Checks for bindings that shadow other bindings already in scope, while reusing the original value.
+shadow_reuse = { level = "warn" }
+# Checks for bindings that shadow other bindings already in scope, while just changing reference level or mutability.
+shadow_same = { level = "warn" }
+# Checks for bindings that shadow other bindings already in scope, either without an initialization or with one that does not even use the original value.
+shadow_unrelated = { level = "warn" }
+# Checks for wildcard enum matches using _.
+wildcard_enum_match_arm = { level = "warn" }
+# Checks for usage of File::read_to_end and File::read_to_string.
+verbose_file_reads = { level = "warn" }
+# Checks for usage of Debug formatting. The purpose of this lint is to catch debugging remnants.
+use_debug = { level = "warn" }
+# Checks for use Trait where the Trait is only used for its methods and not referenced by a path directly.
+unused_trait_names = { level = "warn" }
+# Checks for calls to Result::ok() without using the returned Option.
+unused_result_ok = { level = "warn" }
