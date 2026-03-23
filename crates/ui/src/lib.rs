@@ -1,5 +1,5 @@
 use client_sdk::DlpClient;
-use leptos::*;
+use leptos::{prelude::*, task::spawn_local};
 
 const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:3000";
 
@@ -7,7 +7,7 @@ const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:3000";
 pub fn App() -> impl IntoView {
     let client = DlpClient::new(DEFAULT_SERVER_URL);
     let (status, set_status) =
-        create_signal("Click the button to check server health.".to_string());
+        signal("Click the button to check server health.".to_string());
 
     let run_health_check = move |_| {
         let client = client.clone();

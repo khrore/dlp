@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::{mount::mount_to_body, prelude::*};
 use ui::App;
 
 fn main() {
