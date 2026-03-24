@@ -79,6 +79,10 @@
           (lib.fileset.maybeMissing ./crates/ui/public)
           (lib.fileset.maybeMissing ./crates/ui/static)
         ];
+        appConfigCrate = lib.fileset.unions [
+          ./crates/app-config/Cargo.toml
+          ./crates/app-config/src
+        ];
 
         workspaceSrc = lib.fileset.toSource {
           root = ./.;
@@ -87,6 +91,7 @@
             cargoLock
             cargoConfig
             rustSources
+            appConfigCrate
           ];
         };
 
@@ -97,6 +102,7 @@
             cargoLock
             cargoConfig
             rustSources
+            appConfigCrate
             uiAssets
             uiAssetDirs
           ];

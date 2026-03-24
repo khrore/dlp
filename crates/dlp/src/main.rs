@@ -1,20 +1,20 @@
 use anyhow::{Result, bail};
+use app_config::{DlpConfig, load_dlp_config};
 use clap::{Parser, Subcommand};
 use client_sdk::DlpClient;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:3000";
-
 #[derive(Debug, Parser)]
 #[command(name = "dlp", about = "DLP client with shared CLI and REPL")]
 struct Args {
-    #[arg(
-        long,
-        global = true,
-        env = "DLP_SERVER_URL",
-        default_value = DEFAULT_SERVER_URL
-    )]
-    server_url: String,
+    #[arg(long, global = true)]
+    api_scheme: Option<String>,
+
+    #[arg(long, global = true)]
+    api_host: Option<String>,
+
+    #[arg(long, global = true)]
+    api_port: Option<u16>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -35,9 +35,10 @@ enum InteractiveCommand {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    let client = DlpClient::new(args.server_url);
+    let command = args.command.clone();
+    let client = DlpClient::new(resolve_config(args)?.api.base_url());
 
-    match args.command {
+    match command {
         Some(command) => {
             let output = execute_command(command, &client).await?;
             println!("{output}");
@@ -46,6 +47,22 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn resolve_config(args: Args) -> Result<DlpConfig> {
+    let mut config = load_dlp_config()?;
+
+    if let Some(api_scheme) = args.api_scheme {
+        config.api.scheme = api_scheme;
+    }
+    if let Some(api_host) = args.api_host {
+        config.api.host = api_host;
+    }
+    if let Some(api_port) = args.api_port {
+        config.api.port = api_port;
+    }
+
+    Ok(config)
 }
 
 async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {

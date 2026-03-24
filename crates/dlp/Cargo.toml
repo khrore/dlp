@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+app-config = { path = "../app-config" }
 anyhow.workspace = true
 clap.workspace = true
 client-sdk = { path = "../client-sdk" }
@@ -11,4 +12,3 @@ tokio.workspace = true
 
 [dev-dependencies]
 control-plane = { path = "../control-plane" }
-

@@ -11,3 +11,6 @@ crate-type = ["cdylib", "rlib"]
 client-sdk = { path = "../client-sdk" }
 console_error_panic_hook.workspace = true
 leptos.workspace = true
+
+[build-dependencies]
+app-config = { path = "../app-config" }
