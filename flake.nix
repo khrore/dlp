@@ -172,7 +172,13 @@
             wasmBindgenCli
           ];
           text = ''
-            cd ${projectRoot}/crates/ui
+            if [ -d "$PWD/crates/ui" ]; then
+              cd "$PWD/crates/ui"
+            else
+              echo "ui-dev must be run from the repository root" >&2
+              exit 1
+            fi
+            unset NO_COLOR
             exec trunk serve index.html "$@"
           '';
         };
