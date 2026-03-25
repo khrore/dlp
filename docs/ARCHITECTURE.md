@@ -2,7 +2,7 @@
 
 Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform for training, evaluation, inference, artifact management, and experiment operations across multiple machine learning runtimes.
 
-The core platform does not depend on a single ML framework. Instead, it provides a Rust-based control plane and a set of pluggable execution workers for frameworks such as PyTorch, JAX, MLX, and MAX/Mojo.
+The core platform does not depend on a single ML framework. Instead, it provides a Rust-based control plane and a set of pluggable execution workers for frameworks such as PyTorch, MLX, and MAX/Mojo.
 
 This document describes the durable, higher-level architecture of the platform. Concrete implementation decisions for the first delivery phase live in `docs/IMPLEMENTATION_ARCHITECTURE.md`.
 
@@ -78,7 +78,6 @@ The execution plane consists of independent workers. Workers own runtime executi
 Examples:
 
 - `pytorch-worker`
-- `jax-worker`
 - `mlx-worker`
 - `max-worker`
 
@@ -109,7 +108,7 @@ The platform core models domain concepts such as:
 - `Worker`
 - `WorkerCapability`
 
-These concepts must not depend on PyTorch, JAX, MLX, or MAX-specific internals.
+These concepts must not depend on PyTorch, MLX, or MAX-specific internals.
 
 ### 2. Adapter-Based Runtime Integration
 
@@ -117,10 +116,17 @@ Framework integration happens through worker adapters, not inside the control pl
 
 This allows the platform to support:
 
-- PyTorch for broad training and production workflows
-- JAX for research and accelerator-heavy workflows
-- MLX for Apple silicon local workflows
+- PyTorch for general-purpose training and evaluation across `cpu`, `cuda`, and `rocm` environments
+- MLX for Apple silicon-native local training and execution workflows
 - MAX/Mojo for optimized inference and future specialized compute paths
+
+Recommended runtime roles:
+
+| Framework | Primary workloads | Primary accelerator families |
+| --- | --- | --- |
+| `PyTorch` | training, evaluation, export, and basic inference | `cpu`, `cuda`, `rocm` |
+| `MLX` | local training, evaluation, and execution on Apple hardware | `apple-gpu` |
+| `MAX` | optimized inference and serving | `cpu`, accelerator-specific inference backends |
 
 ### 3. Capability-Based Scheduling
 
@@ -140,6 +146,8 @@ Examples of job requirements:
 
 - framework
 - accelerator type
+- accelerator vendor or runtime stack
+- accelerator architecture family or compatibility class
 - memory constraints
 - distributed support
 - network access policy
@@ -251,7 +259,6 @@ The core should not:
 
 Future versions can add:
 
-- JAX execution workers
 - MLX execution workers
 - distributed training orchestration
 - model conversion pipelines

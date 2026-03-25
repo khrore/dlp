@@ -14,7 +14,7 @@ Runtime-relevant workspace units:
 - `dlp` from `crates/dlp`: CLI and REPL client
 - `client-sdk` from `crates/client-sdk`: shared request and response contracts for all clients
 - future shared worker-agent library or module: generic lifecycle, heartbeats, leases, and process supervision
-- future `pytorch-worker`: a thin binary that embeds the shared worker agent plus the PyTorch runtime provider
+- future `pytorch-worker`: a thin binary that embeds the shared worker agent plus the PyTorch runtime provider for `cpu`, `cuda`, and `rocm` nodes
 - future `max-worker`: a thin binary that embeds the shared worker agent plus the MAX runtime provider
 
 For V1, `scheduler`, `artifact-service`, and `worker-gateway` should remain internal modules inside the `control-plane` deployable. Split them into separate services only after scale or isolation needs are proven.
@@ -29,7 +29,7 @@ For multi-instance model serving and batch execution, the control plane should o
 - lifecycle state for deployments, replicas, and jobs
 - rollout coordination such as create, scale, drain, restart, and delete
 
-The control plane should not directly embed PyTorch or MAX runtimes, and it should not be responsible for spawning framework processes through framework-specific code paths. Its role is to tell a worker what to run, with what resources, and with what artifact references.
+The control plane should not directly embed PyTorch or MAX runtimes, and it should not be responsible for spawning framework processes through framework-specific code paths. Its role is to tell a worker what to run, with what resources, with what accelerator requirements, and with what artifact references.
 
 ## Worker Model
 
@@ -38,7 +38,7 @@ For the first version, treat a worker as a node-local agent with two responsibil
 - advertise node capabilities such as framework support, accelerator inventory, memory, and local concurrency limits
 - host one or more runtime providers that can start and stop concrete model instances
 
-Every worker agent should implement the same control-plane-facing contract, regardless of whether it hosts PyTorch or MAX.
+Every worker agent should implement the same control-plane-facing contract, regardless of whether it hosts PyTorch or MAX. A worker may expose the same provider on multiple accelerator stacks, such as `pytorch` on `cpu`, `cuda`, or `rocm`.
 
 Minimum worker operations:
 
@@ -52,10 +52,37 @@ Minimum worker capability fields for V1:
 
 - `framework`: `pytorch` or `max`
 - `mode`: `training` or `inference`
-- `device`: `cpu`, `cuda`, or later other accelerator classes
+- `device`: `cpu`, `cuda`, `rocm`, or later other accelerator classes
+- accelerator runtime details such as driver stack, toolkit version, and architecture family
 - available memory
 - concurrency slot count
 - optional artifact cache inventory
+
+Recommended minimum logical schema:
+
+```text
+WorkerCapability {
+  framework: pytorch | max | later mlx
+  mode: training | inference
+  device: cpu | cuda | rocm | apple-gpu
+  accelerator_runtime: string
+  architecture_family: string
+  available_memory_bytes: integer
+  concurrency_slots: integer
+  artifact_cache: optional structured inventory
+}
+```
+
+Field intent:
+
+- `framework`: scheduler-visible runtime family exposed by the worker
+- `mode`: whether the worker accepts training or inference workloads for that framework
+- `device`: broad hardware class used for placement
+- `accelerator_runtime`: concrete stack identity such as `cuda`, `rocm`, or later `metal/mlx`
+- `architecture_family`: compatibility filter such as GPU family, compute generation, or Apple silicon generation
+- `available_memory_bytes`: schedulable memory budget for one or more workloads
+- `concurrency_slots`: worker-local admission limit for concurrent replicas or jobs
+- `artifact_cache`: optional local cache hints for warm placement
 
 Recommended worker states:
 
@@ -78,8 +105,14 @@ Define a worker-side `RuntimeProvider` abstraction with a narrow lifecycle contr
 
 Initial providers:
 
-- `PyTorchProvider`: first for training jobs and simple inference processes
+- `PyTorchProvider`: first for training jobs and simple inference processes on `cpu`, `cuda`, and later `rocm` workers through the same provider contract
 - `MaxProvider`: first for optimized inference deployments
+
+Provider positioning should remain explicit:
+
+- `PyTorchProvider` is the primary training and evaluation backend for non-Apple environments
+- `MaxProvider` is inference-first and should not be treated as a training backend
+- future `MlxProvider` should fit the same worker contract for Apple Silicon execution without changing control-plane abstractions
 
 Artifact compatibility should stay explicit:
 
@@ -96,7 +129,11 @@ Jobs are scheduled by declared requirements and worker capabilities, not by hard
 For multi-instance placement, extend scheduling inputs with:
 
 - framework
+- mode
+- device
 - accelerator type
+- accelerator runtime stack such as `cuda` or `rocm`
+- accelerator compatibility such as supported architecture families and runtime versions
 - memory constraints
 - distributed support
 - network access policy
@@ -107,6 +144,22 @@ For multi-instance placement, extend scheduling inputs with:
 - maximum replicas per worker
 - spread and anti-affinity rules
 - priority and preemption policy
+
+Recommended minimum workload requirement shape:
+
+```text
+WorkloadRequirement {
+  framework: pytorch | max | later mlx
+  mode: training | inference
+  device: cpu | cuda | rocm | apple-gpu
+  accelerator_runtime: string
+  architecture_family: string
+  memory_requirement_bytes: integer
+  concurrency_requirement: integer
+}
+```
+
+Placement must match framework support, workload mode, device class, accelerator runtime stack, architecture compatibility, and available capacity before a worker is considered eligible.
 
 ## Deployment and Replica Model
 
@@ -199,8 +252,9 @@ Version 1 should focus on:
 - artifact and checkpoint storage
 - basic metrics and logs
 - one worker agent implementation with local process supervision
-- one training backend, `PyTorch`
+- one training backend, `PyTorch`, initially on `cpu` and `cuda`, with `rocm` kept as an explicit extension target of the same provider model
 - one inference backend, `MAX`
+- capability modeling that already leaves room for a later `MLX` worker on Apple Silicon
 - a command-style CLI
 
 For the immediate milestone of launching multiple concurrent model instances, project and experiment management, REPL polish, and GUI packaging can remain out of scope until the worker protocol and reconciliation loop are proven.
@@ -209,7 +263,8 @@ Suggested rollout order:
 
 - Phase 1: `PyTorch` training worker
 - Phase 2: `MAX` inference worker
-- Phase 3: mixed-fleet scheduling across both providers
+- Phase 3: mixed-fleet scheduling across both providers plus accelerator-aware placement for `cuda` and `rocm`
+- Phase 4: add `MLX` as a post-V1 provider without changing the control-plane capability model
 
 ## V1 Roadmap
 
@@ -217,6 +272,6 @@ Suggested rollout order:
 | --- | --- | --- | --- |
 | 1 | `crates/control-plane` scheduler and worker-gateway modules | placement, leases, heartbeats, command dispatch | control plane can assign work to one worker and track lifecycle state |
 | 2 | `crates/client-sdk` job, deployment, replica, and worker models | shared API contracts for CLI and UI | clients can submit deployments and inspect worker and replica state |
-| 3 | `crates/pytorch-worker` | worker agent plus `PyTorchProvider` for training and simple inference | one node can run and supervise multiple PyTorch instances |
+| 3 | `crates/pytorch-worker` | worker agent plus `PyTorchProvider` for training and simple inference on `cpu` and `cuda`, with the same provider contract ready for `rocm` | one node can run and supervise multiple PyTorch instances |
 | 4 | `crates/max-worker` | worker agent plus `MaxProvider` for optimized inference | one node can run and supervise multiple MAX replicas |
-| 5 | `crates/control-plane` mixed-fleet scheduling policies | schedule across PyTorch and MAX workers with capability checks | control plane can place training and inference workloads across a small worker pool |
+| 5 | `crates/control-plane` mixed-fleet scheduling policies | schedule across PyTorch and MAX workers with capability and accelerator stack checks | control plane can place training and inference workloads across a small worker pool with `cuda` and `rocm` aware placement |
