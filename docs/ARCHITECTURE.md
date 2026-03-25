@@ -4,6 +4,8 @@ Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform f
 
 The core platform does not depend on a single ML framework. Instead, it provides a Rust-based control plane and a set of pluggable execution workers for frameworks such as PyTorch, JAX, MLX, and MAX/Mojo.
 
+This document describes the durable, higher-level architecture of the platform. Concrete implementation decisions for the first delivery phase live in `docs/IMPLEMENTATION_ARCHITECTURE.md`.
+
 ## Goals
 
 - Keep the core platform independent from any one ML framework
@@ -71,7 +73,7 @@ The control plane must remain framework-agnostic. It should understand jobs, art
 
 ### Execution Plane
 
-The execution plane consists of independent workers. Each worker owns one runtime and reports back to the control plane.
+The execution plane consists of independent workers. Workers own runtime execution and report operational state back to the control plane.
 
 Examples:
 
@@ -244,23 +246,6 @@ The core should not:
 - promise cross-framework checkpoint resumability by default
 - bind system behavior to one accelerator vendor
 - require a single inference or training runtime
-
-## Suggested V1 Scope
-
-Version 1 should focus on:
-
-- project and experiment management
-- job submission and status tracking
-- worker registration and capability discovery
-- artifact and checkpoint storage
-- basic metrics and logs
-- one training backend, likely `PyTorch`
-- one inference backend, potentially `MAX`
-- a command-style CLI
-- a basic interactive shell / `REPL`
-- desktop and web operator UI
-
-This is the smallest credible product that preserves the long-term architecture.
 
 ## Future Expansion
 
