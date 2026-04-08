@@ -188,14 +188,91 @@
             exec trunk serve index.html "$@"
           '';
         };
+
+        fmt = pkgs.writeShellApplication {
+          name = "fmt";
+          runtimeInputs = [ rustToolchain ];
+          text = ''
+            if [ ! -f "$PWD/Cargo.toml" ]; then
+              echo "fmt must be run from the repository root" >&2
+              exit 1
+            fi
+            exec cargo fmt --all --check "$@"
+          '';
+        };
+
+        clippy = pkgs.writeShellApplication {
+          name = "clippy";
+          runtimeInputs = [ rustToolchain ];
+          text = ''
+            if [ ! -f "$PWD/Cargo.toml" ]; then
+              echo "clippy must be run from the repository root" >&2
+              exit 1
+            fi
+            exec cargo clippy --workspace --all-targets "$@"
+          '';
+        };
+
+        test = pkgs.writeShellApplication {
+          name = "test";
+          runtimeInputs = [ rustToolchain ];
+          text = ''
+            if [ ! -f "$PWD/Cargo.toml" ]; then
+              echo "test must be run from the repository root" >&2
+              exit 1
+            fi
+            exec cargo test --workspace "$@"
+          '';
+        };
+
+        build = pkgs.writeShellApplication {
+          name = "build";
+          runtimeInputs = [ rustToolchain ];
+          text = ''
+            if [ ! -f "$PWD/Cargo.toml" ]; then
+              echo "build must be run from the repository root" >&2
+              exit 1
+            fi
+
+            cargo build --workspace --exclude ui "$@"
+            cargo build -p ui --target wasm32-unknown-unknown "$@"
+          '';
+        };
+
+        check = pkgs.writeShellApplication {
+          name = "check";
+          runtimeInputs = [ pkgs.nix ];
+          text = ''
+            if [ ! -f "$PWD/flake.nix" ]; then
+              echo "check must be run from the repository root" >&2
+              exit 1
+            fi
+            exec nix flake check "$PWD" "$@"
+          '';
+        };
       in
       {
         apps = {
+          build = flake-utils.lib.mkApp {
+            drv = build;
+          };
+          check = flake-utils.lib.mkApp {
+            drv = check;
+          };
+          clippy = flake-utils.lib.mkApp {
+            drv = clippy;
+          };
           dlp = flake-utils.lib.mkApp {
             drv = dlp;
           };
           control-plane = flake-utils.lib.mkApp {
             drv = controlPlane;
+          };
+          fmt = flake-utils.lib.mkApp {
+            drv = fmt;
+          };
+          test = flake-utils.lib.mkApp {
+            drv = test;
           };
           ui-dev = flake-utils.lib.mkApp {
             drv = uiDev;
