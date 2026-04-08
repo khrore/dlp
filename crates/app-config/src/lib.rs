@@ -59,7 +59,12 @@ impl Default for EndpointConfig {
 
 impl EndpointConfig {
     pub fn base_url(&self) -> String {
-        format!("{}://{}:{}", self.scheme, self.host, self.port)
+        let host = match self.host.parse::<IpAddr>() {
+            Ok(IpAddr::V6(_)) => format!("[{}]", self.host),
+            Ok(IpAddr::V4(_)) | Err(_) => self.host.clone(),
+        };
+
+        format!("{}://{}:{}", self.scheme, host, self.port)
     }
 }
 
@@ -107,6 +112,10 @@ pub fn load_ui_config_from_dir(start_dir: &Path) -> Result<UiConfig, ConfigError
     extract_root_config_from_dir(start_dir).map(|config| config.ui)
 }
 
+pub fn find_config_path_from_dir(start_dir: &Path) -> Option<PathBuf> {
+    find_config_path(start_dir)
+}
+
 fn default_http_scheme() -> String {
     DEFAULT_HTTP_SCHEME.to_string()
 }
@@ -131,7 +140,7 @@ fn extract_root_config_from_dir(start_dir: &Path) -> Result<RootConfig, ConfigEr
 
 fn base_figment(start_dir: &Path) -> Figment {
     let figment = Figment::from(Serialized::defaults(RootConfig::default()));
-    let figment = if let Some(config_path) = find_config_path(start_dir) {
+    let figment = if let Some(config_path) = find_config_path_from_dir(start_dir) {
         figment.merge(Toml::file(config_path))
     } else {
         figment
@@ -147,7 +156,14 @@ fn base_figment(start_dir: &Path) -> Figment {
 }
 
 fn find_config_path(start_dir: &Path) -> Option<PathBuf> {
-    if let Some(config_path) = env::var_os("DLP_CONFIG_PATH").map(PathBuf::from) {
+    find_config_path_with_override(env::var_os("DLP_CONFIG_PATH").map(PathBuf::from), start_dir)
+}
+
+fn find_config_path_with_override(
+    config_path_override: Option<PathBuf>,
+    start_dir: &Path,
+) -> Option<PathBuf> {
+    if let Some(config_path) = config_path_override {
         return Some(config_path);
     }
 
@@ -171,13 +187,18 @@ fn extract_from_figment(figment: Figment) -> Result<RootConfig, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::{
+        fs,
+        net::{IpAddr, Ipv4Addr},
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     use figment::{Figment, providers::Serialized};
 
     use super::{
         ControlPlaneConfig, DlpConfig, EndpointConfig, HostPortConfig, RootConfig, UiConfig,
-        extract_from_figment,
+        extract_from_figment, find_config_path_from_dir, find_config_path_with_override,
     };
 
     #[test]
@@ -189,6 +210,28 @@ mod tests {
         };
 
         assert_eq!(config.base_url(), "https://dlp.example.com:443");
+    }
+
+    #[test]
+    fn endpoint_base_url_preserves_ipv4_formatting() {
+        let config = EndpointConfig {
+            scheme: "http".to_owned(),
+            host:   "127.0.0.1".to_owned(),
+            port:   3000,
+        };
+
+        assert_eq!(config.base_url(), "http://127.0.0.1:3000");
+    }
+
+    #[test]
+    fn endpoint_base_url_brackets_ipv6_hosts() {
+        let config = EndpointConfig {
+            scheme: "http".to_owned(),
+            host:   "::1".to_owned(),
+            port:   3000,
+        };
+
+        assert_eq!(config.base_url(), "http://[::1]:3000");
     }
 
     #[test]
@@ -229,5 +272,58 @@ mod tests {
         assert_eq!(config.control_plane.server.port, 4000);
         assert_eq!(config.dlp.api.base_url(), "https://api.example.com:8443");
         assert_eq!(config.ui.api.base_url(), "http://127.0.0.1:3000");
+    }
+
+    #[test]
+    fn config_path_prefers_environment_override() {
+        let test_dir = make_temp_dir("env_override");
+        let env_config = test_dir.join("override.toml");
+        fs::write(&env_config, "").unwrap_or_else(|error| {
+            panic!("failed to create config override fixture: {error}");
+        });
+
+        assert_eq!(
+            find_config_path_with_override(Some(env_config.clone()), &test_dir),
+            Some(env_config.clone())
+        );
+
+        fs::remove_dir_all(&test_dir).unwrap_or_else(|error| {
+            panic!("failed to remove temp dir: {error}");
+        });
+    }
+
+    #[test]
+    fn config_path_walks_ancestor_directories() {
+        let test_dir = make_temp_dir("ancestor_lookup");
+        let nested_dir = test_dir.join("nested").join("more");
+        let config_path = test_dir.join("config.toml");
+
+        fs::create_dir_all(&nested_dir).unwrap_or_else(|error| {
+            panic!("failed to create nested fixture dirs: {error}");
+        });
+        fs::write(&config_path, "").unwrap_or_else(|error| {
+            panic!("failed to create ancestor config fixture: {error}");
+        });
+
+        assert_eq!(
+            find_config_path_from_dir(&nested_dir),
+            Some(config_path.clone())
+        );
+
+        fs::remove_dir_all(&test_dir).unwrap_or_else(|error| {
+            panic!("failed to remove temp dir: {error}");
+        });
+    }
+
+    fn make_temp_dir(suffix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
+        let path = std::env::temp_dir().join(format!("dlp-app-config-{suffix}-{unique}"));
+        fs::create_dir_all(&path).unwrap_or_else(|error| {
+            panic!("failed to create temp dir: {error}");
+        });
+        path
     }
 }

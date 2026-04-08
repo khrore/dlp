@@ -4,20 +4,19 @@ use std::{
     io::{self, Write},
 };
 
-use app_config::load_ui_config_from_dir;
+use app_config::{find_config_path_from_dir, load_ui_config_from_dir};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
-    let config_path = std::path::Path::new(&manifest_dir)
-        .ancestors()
-        .nth(2)
-        .map(|dir| dir.join("config.toml"))
-        .ok_or("workspace root not found")?;
+    let manifest_path = std::path::Path::new(&manifest_dir);
+    let config_path = find_config_path_from_dir(manifest_path);
 
-    emit_cargo_directive(format_args!(
-        "cargo:rerun-if-changed={}\n",
-        config_path.display()
-    ))?;
+    if let Some(config_path) = config_path {
+        emit_cargo_directive(format_args!(
+            "cargo:rerun-if-changed={}\n",
+            config_path.display()
+        ))?;
+    }
     emit_cargo_directive(format_args!(
         "cargo:rerun-if-env-changed=DLP_UI_API_SCHEME\n"
     ))?;
@@ -25,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_UI_API_PORT\n"))?;
     emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_CONFIG_PATH\n"))?;
 
-    let config = load_ui_config_from_dir(std::path::Path::new(&manifest_dir))?;
+    let config = load_ui_config_from_dir(manifest_path)?;
     emit_cargo_directive(format_args!(
         "cargo:rustc-env=DLP_UI_API_BASE_URL={}\n",
         config.api.base_url()

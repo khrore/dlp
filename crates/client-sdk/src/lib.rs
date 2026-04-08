@@ -23,18 +23,31 @@ impl HealthResponse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClientError {
     Transport(String),
-    HttpStatus { code: u16, body: String },
+    HttpStatus {
+        code:            u16,
+        body:            String,
+        body_read_error: Option<String>,
+    },
 }
 
 impl Display for ClientError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Transport(message) => write!(f, "transport error: {message}"),
-            Self::HttpStatus { code, body } => {
-                if body.is_empty() {
-                    write!(f, "request failed with status {code}")
-                } else {
+            Self::HttpStatus {
+                code,
+                body,
+                body_read_error,
+            } => {
+                if !body.is_empty() {
                     write!(f, "request failed with status {code}: {body}")
+                } else if let Some(error) = body_read_error {
+                    write!(
+                        f,
+                        "request failed with status {code} (failed to read error body: {error})"
+                    )
+                } else {
+                    write!(f, "request failed with status {code}")
                 }
             }
         }
@@ -73,10 +86,14 @@ impl DlpClient {
 
         let status = response.status();
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
+            let (body, body_read_error) = match response.text().await {
+                Ok(body) => (body, None),
+                Err(error) => (String::new(), Some(error.to_string())),
+            };
             return Err(ClientError::HttpStatus {
                 code: status.as_u16(),
                 body,
+                body_read_error,
             });
         }
 
@@ -95,8 +112,15 @@ impl DlpClient {
 
         let status = response.status();
         if !(200..300).contains(&status) {
-            let body = response.text().await.unwrap_or_default();
-            return Err(ClientError::HttpStatus { code: status, body });
+            let (body, body_read_error) = match response.text().await {
+                Ok(body) => (body, None),
+                Err(error) => (String::new(), Some(error.to_string())),
+            };
+            return Err(ClientError::HttpStatus {
+                code: status,
+                body,
+                body_read_error,
+            });
         }
 
         response
@@ -112,7 +136,7 @@ fn normalize_base_url(base_url: String) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{DlpClient, HealthResponse};
+    use super::{ClientError, DlpClient, HealthResponse};
 
     #[test]
     fn trims_trailing_slashes_from_base_url() {
@@ -127,5 +151,33 @@ mod tests {
             status:  "ok".to_string(),
             service: "control-plane".to_string(),
         });
+    }
+
+    #[test]
+    fn http_status_display_includes_error_body() {
+        let error = ClientError::HttpStatus {
+            code:            500,
+            body:            "backend unavailable".to_owned(),
+            body_read_error: None,
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "request failed with status 500: backend unavailable"
+        );
+    }
+
+    #[test]
+    fn http_status_display_reports_body_read_failure() {
+        let error = ClientError::HttpStatus {
+            code:            502,
+            body:            String::new(),
+            body_read_error: Some("connection reset".to_owned()),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "request failed with status 502 (failed to read error body: connection reset)"
+        );
     }
 }
