@@ -3,6 +3,9 @@ name = "app-config"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 figment.workspace = true
 serde.workspace = true

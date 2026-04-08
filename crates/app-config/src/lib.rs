@@ -1,6 +1,6 @@
 use std::{
     env,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 
@@ -25,7 +25,7 @@ pub struct HostPortConfig {
 impl Default for HostPortConfig {
     fn default() -> Self {
         Self {
-            host: DEFAULT_LOCALHOST.parse().expect("default localhost parses"),
+            host: IpAddr::V4(Ipv4Addr::LOCALHOST),
             port: DEFAULT_PORT,
         }
     }
@@ -207,14 +207,14 @@ mod tests {
         let overrides = RootConfig {
             control_plane: ControlPlaneConfig {
                 server: HostPortConfig {
-                    host: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                    host: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                     port: 4000,
                 },
             },
             dlp:           DlpConfig {
                 api: EndpointConfig {
-                    scheme: "https".to_string(),
-                    host:   "api.example.com".to_string(),
+                    scheme: "https".to_owned(),
+                    host:   "api.example.com".to_owned(),
                     port:   8443,
                 },
             },

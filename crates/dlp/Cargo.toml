@@ -3,6 +3,9 @@ name = "dlp"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 app-config = { path = "../app-config" }
 anyhow.workspace = true

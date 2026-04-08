@@ -3,11 +3,16 @@ name = "control-plane"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 app-config = { path = "../app-config" }
 axum.workspace = true
 clap.workspace = true
 client-sdk = { path = "../client-sdk" }
+env_logger.workspace = true
+log.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

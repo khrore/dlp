@@ -1,4 +1,5 @@
 use client_sdk::DlpClient;
+use console_error_panic_hook as _;
 use leptos::{prelude::*, task::spawn_local};
 const API_BASE_URL: &str = env!("DLP_UI_API_BASE_URL");
 

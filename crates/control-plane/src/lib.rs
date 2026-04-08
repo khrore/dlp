@@ -1,5 +1,15 @@
+use app_config as _;
 use axum::{Json, Router, routing::get};
+use clap as _;
+use client_sdk as _;
 use client_sdk::HealthResponse;
+use env_logger as _;
+use log as _;
+#[cfg(test)]
+use serde_json as _;
+use tokio as _;
+#[cfg(test)]
+use tower as _;
 
 pub fn app() -> Router {
     Router::new().route("/health", get(health))
@@ -16,28 +26,24 @@ mod tests {
         http::{Request, StatusCode},
     };
     use client_sdk::HealthResponse;
-    use tower::util::ServiceExt;
+    use tower::util::ServiceExt as _;
 
     use super::app;
 
     #[tokio::test]
     async fn health_endpoint_returns_expected_payload() {
-        let response = app()
-            .oneshot(
-                Request::builder()
-                    .uri("/health")
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
+        let request = Request::builder()
+            .uri("/health")
+            .body(Body::empty())
+            .expect("request");
+        let response = app().oneshot(request).await.expect("response");
 
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("body");
-        let payload: HealthResponse = serde_json::from_slice(&body).expect("json");
+        let payload = serde_json::from_slice::<HealthResponse>(&body).expect("json");
         assert_eq!(payload, HealthResponse::ok("control-plane"));
     }
 }

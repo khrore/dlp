@@ -2,6 +2,8 @@ use anyhow::{Result, bail};
 use app_config::{DlpConfig, load_dlp_config};
 use clap::{Parser, Subcommand};
 use client_sdk::DlpClient;
+#[cfg(test)]
+use control_plane as _;
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 #[derive(Debug, Parser)]
@@ -41,7 +43,9 @@ async fn main() -> Result<()> {
     match command {
         Some(command) => {
             let output = execute_command(command, &client).await?;
-            println!("{output}");
+            let mut stdout = io::stdout();
+            stdout.write_all(output.as_bytes()).await?;
+            stdout.write_all(b"\n").await?;
         }
         None => run_repl(client).await?,
     }
