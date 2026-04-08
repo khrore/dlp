@@ -1,24 +1,41 @@
+//! Browser UI for the DLP control plane.
+#![expect(
+    clippy::absolute_paths,
+    reason = "Leptos view macro expansion emits qualified paths."
+)]
+#![expect(
+    clippy::same_name_method,
+    reason = "The Leptos component macro generates a builder method."
+)]
+
 use client_sdk::DlpClient;
 use console_error_panic_hook as _;
 use leptos::{prelude::*, task::spawn_local};
+
+/// Default copy shown before the first health check.
+const DEFAULT_STATUS: &str = "Click the button to check server health.";
+/// API base URL injected by the build script.
 const API_BASE_URL: &str = env!("DLP_UI_API_BASE_URL");
 
+/// Renders the main application shell.
 #[component]
+#[inline]
+#[must_use]
 pub fn App() -> impl IntoView {
-    let client = DlpClient::new(API_BASE_URL);
-    let (status, set_status) = signal("Click the button to check server health.".to_string());
+    let health_client = DlpClient::new(API_BASE_URL);
+    let (status, status_setter) = signal(DEFAULT_STATUS.to_owned());
 
     let run_health_check = move |_| {
-        let client = client.clone();
-        let set_status = set_status;
+        let request_client = health_client.clone();
+        let response_setter = status_setter;
 
-        set_status.set("Checking server health...".to_string());
+        response_setter.set("Checking server health...".to_owned());
         spawn_local(async move {
-            let next_status = match client.health_check().await {
+            let next_status = match request_client.health_check().await {
                 Ok(response) => format!("{}: {}", response.service, response.status),
                 Err(error) => format!("health check failed: {error}"),
             };
-            set_status.set(next_status);
+            response_setter.set(next_status);
         });
     };
 
@@ -33,7 +50,7 @@ pub fn App() -> impl IntoView {
 
 #[cfg(test)]
 mod tests {
-    const DEFAULT_STATUS: &str = "Click the button to check server health.";
+    use super::DEFAULT_STATUS;
 
     #[test]
     fn default_status_message_matches_app_copy() {

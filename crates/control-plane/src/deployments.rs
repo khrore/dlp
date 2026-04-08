@@ -15,11 +15,18 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct ReplicaListQuery {
-    pub(crate) deployment_id: Option<String>,
+/// Query parameters for filtering replica listings.
+pub struct ReplicaListQuery {
+    deployment_id: Option<String>,
 }
 
-pub(crate) async fn create_deployment(
+impl ReplicaListQuery {
+    fn deployment_id(&self) -> Option<&str> {
+        self.deployment_id.as_deref()
+    }
+}
+
+pub async fn create_deployment(
     State(state): State<SharedState>,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<CreateDeploymentResponse>, (StatusCode, String)> {
@@ -32,7 +39,7 @@ pub(crate) async fn create_deployment(
     Ok(Json(response))
 }
 
-pub(crate) async fn get_deployment(
+pub async fn get_deployment(
     State(state): State<SharedState>,
     Path(deployment_id): Path<String>,
 ) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
@@ -50,19 +57,19 @@ pub(crate) async fn get_deployment(
     Ok(Json(response))
 }
 
-pub(crate) async fn list_replicas(
+pub async fn list_replicas(
     State(state): State<SharedState>,
     Query(query): Query<ReplicaListQuery>,
 ) -> Result<Json<ListReplicasResponse>, (StatusCode, String)> {
     let response = {
         let guard = state.lock().await;
-        guard.list_replicas(query.deployment_id.as_deref())
+        guard.list_replicas(query.deployment_id())
     };
 
     Ok(Json(response))
 }
 
-pub(crate) async fn update_replica_status(
+pub async fn update_replica_status(
     State(state): State<SharedState>,
     Path(replica_id): Path<String>,
     Json(request): Json<UpdateReplicaStatusRequest>,

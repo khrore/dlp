@@ -1,3 +1,13 @@
+//! Stub PyTorch worker used to exercise the control plane.
+#![expect(
+    missing_docs,
+    reason = "This binary crate is configured through clap metadata."
+)]
+#![expect(
+    clippy::missing_docs_in_private_items,
+    reason = "Worker lifecycle helpers stay local to this binary crate."
+)]
+
 use std::{
     collections::HashMap,
     sync::{
@@ -27,43 +37,43 @@ const LIFECYCLE_STEP_DELAY: Duration = Duration::from_millis(100);
 #[derive(Debug, Clone, Parser)]
 #[command(name = "pytorch-worker", about = "Stub PyTorch worker for DLP")]
 struct Args {
-    #[arg(long, default_value = "http://127.0.0.1:3000")]
-    api_base_url: String,
-
-    #[arg(long, default_value = "worker-1")]
-    worker_id: String,
-
-    #[arg(long, default_value = "PyTorch Worker")]
-    display_name: String,
-
-    #[arg(long, default_value_t = WorkloadMode::Training)]
-    mode: WorkloadMode,
-
-    #[arg(long, default_value_t = DeviceClass::Cpu)]
-    device: DeviceClass,
-
     #[arg(long, default_value = "cpu")]
     accelerator_runtime: String,
+
+    #[arg(long, default_value = "http://127.0.0.1:3000")]
+    api_base_url: String,
 
     #[arg(long, default_value = "generic")]
     architecture_family: String,
 
-    #[arg(long, default_value_t = 8192)]
-    memory_bytes: u64,
-
     #[arg(long, default_value_t = 1)]
     concurrency_slots: u32,
 
+    #[arg(long, default_value_t = DeviceClass::Cpu)]
+    device: DeviceClass,
+
+    #[arg(long, default_value = "PyTorch Worker")]
+    display_name: String,
+
     #[arg(long, value_enum, default_value_t = FailureMode::None)]
     failure_mode: FailureMode,
+
+    #[arg(long, default_value_t = 8192)]
+    memory_bytes: u64,
+
+    #[arg(long, default_value_t = WorkloadMode::Training)]
+    mode: WorkloadMode,
+
+    #[arg(long, default_value = "worker-1")]
+    worker_id: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum FailureMode {
-    None,
-    BeforeReady,
     AfterReady,
+    BeforeReady,
     ExitAfterReady,
+    None,
 }
 
 trait RuntimeProvider {
@@ -100,8 +110,8 @@ impl RuntimeProvider for SimulatedProvider {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LifecycleStep {
-    state:   ReplicaState,
     message: String,
+    state: ReplicaState,
 }
 
 impl LifecycleStep {
@@ -155,19 +165,22 @@ async fn main() -> Result<()> {
             .await?;
 
         for assignment in response.assignments {
-            let client = client.clone();
-            let provider = provider.clone();
-            let active_replicas = Arc::clone(&active_replicas);
-            let stop_heartbeats = Arc::clone(&stop_heartbeats);
+            let assignment_client = client.clone();
+            let assignment_provider = provider.clone();
+            let replica_state_map = Arc::clone(&active_replicas);
+            let heartbeat_stop_flag = Arc::clone(&stop_heartbeats);
             tokio::spawn(async move {
-                let _ = process_assignment(
-                    client,
-                    provider,
+                if let Err(error) = process_assignment(
+                    assignment_client,
+                    assignment_provider,
                     assignment,
-                    active_replicas,
-                    stop_heartbeats,
+                    replica_state_map,
+                    heartbeat_stop_flag,
                 )
-                .await;
+                .await
+                {
+                    log_assignment_error(error);
+                }
             });
         }
     }
@@ -208,8 +221,11 @@ async fn process_assignment(
             ReplicaState::Failed | ReplicaState::Stopped => {
                 guard.remove(&assignment.replica_id);
             }
-            other => {
-                guard.insert(assignment.replica_id.clone(), other);
+            ReplicaState::Assigned
+            | ReplicaState::Pending
+            | ReplicaState::Pulling
+            | ReplicaState::Starting => {
+                guard.insert(assignment.replica_id.clone(), step.state);
             }
         }
     }
@@ -217,11 +233,15 @@ async fn process_assignment(
     Ok(())
 }
 
+fn log_assignment_error(error: anyhow::Error) {
+    let _ignored = error;
+}
+
 #[cfg(test)]
 mod tests {
     use client_sdk::ReplicaState;
 
-    use super::{FailureMode, LifecycleStep, RuntimeProvider, SimulatedProvider};
+    use super::{FailureMode, LifecycleStep, SimulatedProvider};
 
     #[test]
     fn provider_plans_ready_lifecycle_by_default() {

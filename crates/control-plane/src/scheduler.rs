@@ -1,6 +1,6 @@
 use client_sdk::{Worker, WorkerCapability, WorkerLease, WorkloadRequirement};
 
-pub(crate) fn capability_matches(
+pub fn capability_matches(
     capability: &WorkerCapability,
     requirement: &WorkloadRequirement,
 ) -> bool {
@@ -11,7 +11,7 @@ pub(crate) fn capability_matches(
         && capability.architecture_family == requirement.architecture_family
 }
 
-pub(crate) fn available_capacity_for_requirement(
+pub fn available_capacity_for_requirement(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[&WorkerLease],
@@ -24,13 +24,13 @@ pub(crate) fn available_capacity_for_requirement(
             let used_slots = leases
                 .iter()
                 .filter(|lease| capability_matches(capability, &lease.requirement))
-                .fold(0_u32, |total, lease| {
+                .fold(0u32, |total, lease| {
                     total.saturating_add(lease.requirement.concurrency_requirement)
                 });
             let used_memory = leases
                 .iter()
                 .filter(|lease| capability_matches(capability, &lease.requirement))
-                .fold(0_u64, |total, lease| {
+                .fold(0u64, |total, lease| {
                     total.saturating_add(lease.requirement.memory_requirement_bytes)
                 });
 
@@ -43,7 +43,7 @@ pub(crate) fn available_capacity_for_requirement(
         })
 }
 
-pub(crate) fn worker_is_eligible(
+pub fn worker_is_eligible(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[&WorkerLease],

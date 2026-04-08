@@ -1,3 +1,29 @@
+//! Axum application and integration tests for the DLP control plane.
+#![expect(
+    clippy::arbitrary_source_item_ordering,
+    reason = "This crate keeps imports and modules grouped by runtime role."
+)]
+#![expect(
+    clippy::absolute_paths,
+    reason = "Integration tests use explicit fully-qualified types for clarity."
+)]
+#![expect(
+    clippy::let_underscore_drop,
+    reason = "Integration tests intentionally ignore intermediate setup responses."
+)]
+#![expect(
+    clippy::pub_use,
+    reason = "The library re-exports its primary state and reconcile entrypoints."
+)]
+#![expect(
+    clippy::significant_drop_tightening,
+    reason = "Tests intentionally scope mutex guards before running follow-up assertions."
+)]
+#![expect(
+    clippy::str_to_string,
+    reason = "Test fixtures favor direct string literals for readability."
+)]
+
 use app_config as _;
 use axum::{
     Json, Router,
@@ -23,6 +49,7 @@ mod workers;
 pub use reconcile::spawn_reconcile_loop;
 pub use state::{AppState, SharedState, new_shared_state};
 
+/// Builds the Axum router for the control-plane API.
 pub fn app(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -100,7 +127,8 @@ mod tests {
     fn first_assignment(
         response: Option<WorkerHeartbeatResponse>,
     ) -> Option<client_sdk::WorkerAssignment> {
-        response.and_then(|heartbeat| heartbeat.assignments.into_iter().next())
+        let heartbeat = response?;
+        heartbeat.assignments.into_iter().next()
     }
 
     async fn json_response<Response>(
@@ -110,17 +138,14 @@ mod tests {
     where
         Response: serde::de::DeserializeOwned,
     {
-        let response = router.oneshot(request).await;
-        assert!(response.is_ok());
-        let Some(response) = response.ok() else {
-            unreachable!();
-        };
+        let response = router
+            .oneshot(request)
+            .await
+            .expect("router request should succeed");
         let status = response.status();
-        let body = to_bytes(response.into_body(), usize::MAX).await;
-        assert!(body.is_ok());
-        let Some(body) = body.ok() else {
-            unreachable!();
-        };
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response body should be readable");
         let parsed = serde_json::from_slice::<Response>(&body).ok();
 
         (status, parsed)
@@ -130,32 +155,22 @@ mod tests {
     where
         RequestBody: serde::Serialize,
     {
-        let json = serde_json::to_vec(body);
-        assert!(json.is_ok());
-        let Some(json) = json.ok() else {
-            unreachable!();
-        };
+        let json = serde_json::to_vec(body).expect("request body should serialize");
         let request = Request::builder()
             .method("POST")
             .uri(uri)
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(json));
-        assert!(request.is_ok());
-        let Some(request) = request.ok() else {
-            unreachable!();
-        };
+            .body(Body::from(json))
+            .expect("request should be constructible");
 
         request
     }
 
     fn get_request(uri: &str) -> Request<Body> {
-        let request = Request::builder().uri(uri).body(Body::empty());
-        assert!(request.is_ok());
-        let Some(request) = request.ok() else {
-            unreachable!();
-        };
-
-        request
+        Request::builder()
+            .uri(uri)
+            .body(Body::empty())
+            .expect("request should be constructible")
     }
 
     #[tokio::test]
@@ -182,7 +197,7 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let (status, created) = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
@@ -225,18 +240,18 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
 
         let first = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -266,17 +281,17 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cuda, 1)),
         )
         .await;
         let heartbeat = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -309,24 +324,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -361,24 +376,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -395,7 +410,7 @@ mod tests {
             .unwrap_or_default();
 
         let failure = json_response::<client_sdk::ModelReplica>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
@@ -407,7 +422,7 @@ mod tests {
         )
         .await;
         let stale_retry = json_response::<client_sdk::ModelReplica>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
@@ -419,7 +434,7 @@ mod tests {
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -460,24 +475,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -487,7 +502,7 @@ mod tests {
         assert!(assignment.is_some());
 
         let (status, registration) = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
@@ -528,24 +543,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -562,12 +577,12 @@ mod tests {
             .unwrap_or_default();
 
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
@@ -603,24 +618,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -631,7 +646,7 @@ mod tests {
             .unwrap_or_default();
 
         let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
@@ -667,24 +682,24 @@ mod tests {
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/deployments", &create_request),
         )
         .await;
         let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let _ = json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
+            app(std::sync::Arc::clone(&state)),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -701,7 +716,11 @@ mod tests {
         }
         reconcile_once(&state).await;
         let (worker_status, workers) =
-            json_response::<ListWorkersResponse>(app(state.clone()), get_request("/workers")).await;
+            json_response::<ListWorkersResponse>(
+                app(std::sync::Arc::clone(&state)),
+                get_request("/workers"),
+            )
+            .await;
         let (replica_status, deployment) = json_response::<GetDeploymentResponse>(
             app(state),
             get_request("/deployments/deployment-1"),

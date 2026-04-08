@@ -12,6 +12,12 @@ resolver = "2"
 [workspace.package]
 edition = "2024"
 version = "0.1.0"
+description = "Framework-agnostic deep learning platform workspace."
+license = "UNLICENSED"
+repository = "https://github.com/khrore/dlp"
+readme = "README.md"
+keywords = ["deep-learning", "ml", "orchestration", "rust"]
+categories = ["command-line-utilities", "web-programming"]
 
 [workspace.dependencies]
 anyhow = "1.0"

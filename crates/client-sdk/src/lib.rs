@@ -1,6 +1,40 @@
+//! Shared models and HTTP client helpers for DLP components.
+#![expect(
+    missing_docs,
+    reason = "These wire-format models are intentionally lightweight and derive their shape from serde."
+)]
+#![expect(
+    clippy::arbitrary_source_item_ordering,
+    reason = "The SDK groups related transport models by feature area instead of alphabetically."
+)]
+#![expect(
+    clippy::missing_inline_in_public_items,
+    reason = "These small helpers do not need explicit inlining annotations."
+)]
+#![expect(
+    clippy::missing_errors_doc,
+    reason = "The shared client methods use a uniform `ClientError` contract."
+)]
+#![expect(
+    clippy::missing_trait_methods,
+    reason = "Default trait methods on `Error` are intentionally inherited."
+)]
+#![expect(
+    clippy::must_use_candidate,
+    reason = "These simple accessors are already obvious from naming and type signatures."
+)]
+#![expect(
+    clippy::multiple_inherent_impl,
+    reason = "Target-specific client transport helpers are split by cfg."
+)]
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "Normalizing an owned base URL keeps the constructor API simple."
+)]
+
 use std::{
     error::Error,
-    fmt::{Display, Formatter},
+    fmt::{Display, Formatter, Result as FmtResult},
     str::FromStr,
 };
 
@@ -8,15 +42,18 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HealthResponse {
-    pub status:  String,
     pub service: String,
+    pub status: String,
 }
 
 impl HealthResponse {
-    pub fn ok(service: impl Into<String>) -> Self {
+    pub fn ok<Service>(service: Service) -> Self
+    where
+        Service: Into<String>,
+    {
         Self {
-            status:  "ok".to_string(),
             service: service.into(),
+            status: "ok".to_owned(),
         }
     }
 }
@@ -29,7 +66,7 @@ pub enum Framework {
 }
 
 impl Framework {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::Pytorch => "pytorch",
             Self::Max => "max",
@@ -38,7 +75,7 @@ impl Framework {
 }
 
 impl Display for Framework {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
 }
@@ -63,7 +100,7 @@ pub enum WorkloadMode {
 }
 
 impl WorkloadMode {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::Training => "training",
             Self::Inference => "inference",
@@ -72,7 +109,7 @@ impl WorkloadMode {
 }
 
 impl Display for WorkloadMode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
 }
@@ -99,7 +136,7 @@ pub enum DeviceClass {
 }
 
 impl DeviceClass {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::Cpu => "cpu",
             Self::Cuda => "cuda",
@@ -110,7 +147,7 @@ impl DeviceClass {
 }
 
 impl Display for DeviceClass {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
 }
@@ -140,7 +177,7 @@ pub enum WorkerState {
 }
 
 impl Display for WorkerState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Starting => "starting",
             Self::Ready => "ready",
@@ -165,7 +202,7 @@ pub enum ReplicaState {
 }
 
 impl Display for ReplicaState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Pending => "pending",
             Self::Assigned => "assigned",
@@ -188,7 +225,7 @@ pub enum LeaseState {
 }
 
 impl Display for LeaseState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Active => "active",
             Self::Released => "released",
@@ -200,47 +237,48 @@ impl Display for LeaseState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerCapability {
-    pub framework:              Framework,
-    pub mode:                   WorkloadMode,
-    pub device:                 DeviceClass,
-    pub accelerator_runtime:    String,
-    pub architecture_family:    String,
+    pub framework: Framework,
+    pub mode: WorkloadMode,
+    pub device: DeviceClass,
+    pub accelerator_runtime: String,
+    pub architecture_family: String,
     pub available_memory_bytes: u64,
-    pub concurrency_slots:      u32,
+    pub concurrency_slots: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkloadRequirement {
-    pub framework:                Framework,
-    pub mode:                     WorkloadMode,
-    pub device:                   DeviceClass,
-    pub accelerator_runtime:      String,
-    pub architecture_family:      String,
+    pub framework: Framework,
+    pub mode: WorkloadMode,
+    pub device: DeviceClass,
+    pub accelerator_runtime: String,
+    pub architecture_family: String,
     pub memory_requirement_bytes: u64,
-    pub concurrency_requirement:  u32,
+    pub concurrency_requirement: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeploymentStatusSummary {
-    pub pending_replicas:  u32,
+    pub pending_replicas: u32,
     pub assigned_replicas: u32,
-    pub pulling_replicas:  u32,
+    pub pulling_replicas: u32,
     pub starting_replicas: u32,
-    pub ready_replicas:    u32,
-    pub failed_replicas:   u32,
-    pub stopped_replicas:  u32,
+    pub ready_replicas: u32,
+    pub failed_replicas: u32,
+    pub stopped_replicas: u32,
 }
 
 impl DeploymentStatusSummary {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
-            pending_replicas:  0,
+            pending_replicas: 0,
             assigned_replicas: 0,
-            pulling_replicas:  0,
+            pulling_replicas: 0,
             starting_replicas: 0,
-            ready_replicas:    0,
-            failed_replicas:   0,
-            stopped_replicas:  0,
+            ready_replicas: 0,
+            failed_replicas: 0,
+            stopped_replicas: 0,
         }
     }
 }
@@ -253,57 +291,57 @@ impl Default for DeploymentStatusSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelDeployment {
-    pub id:               String,
-    pub name:             String,
-    pub artifact_ref:     String,
+    pub id: String,
+    pub name: String,
+    pub artifact_ref: String,
     pub replicas_desired: u32,
-    pub requirement:      WorkloadRequirement,
-    pub status:           DeploymentStatusSummary,
+    pub requirement: WorkloadRequirement,
+    pub status: DeploymentStatusSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelReplica {
-    pub id:             String,
-    pub deployment_id:  String,
-    pub worker_id:      Option<String>,
-    pub lease_id:       Option<String>,
-    pub state:          ReplicaState,
+    pub id: String,
+    pub deployment_id: String,
+    pub worker_id: Option<String>,
+    pub lease_id: Option<String>,
+    pub state: ReplicaState,
     pub status_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerLease {
-    pub id:            String,
-    pub worker_id:     String,
+    pub id: String,
+    pub worker_id: String,
     pub deployment_id: String,
-    pub replica_id:    String,
-    pub state:         LeaseState,
-    pub requirement:   WorkloadRequirement,
+    pub replica_id: String,
+    pub state: LeaseState,
+    pub requirement: WorkloadRequirement,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerAssignment {
-    pub worker_id:     String,
+    pub worker_id: String,
     pub deployment_id: String,
-    pub replica_id:    String,
-    pub lease_id:      String,
-    pub artifact_ref:  String,
-    pub requirement:   WorkloadRequirement,
+    pub replica_id: String,
+    pub lease_id: String,
+    pub artifact_ref: String,
+    pub requirement: WorkloadRequirement,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Worker {
-    pub id:                String,
-    pub display_name:      String,
-    pub state:             WorkerState,
-    pub capabilities:      Vec<WorkerCapability>,
+    pub id: String,
+    pub display_name: String,
+    pub state: WorkerState,
+    pub capabilities: Vec<WorkerCapability>,
     pub assigned_replicas: u32,
-    pub available_slots:   u32,
+    pub available_slots: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RegisterWorkerRequest {
-    pub worker_id:    String,
+    pub worker_id: String,
     pub display_name: String,
     pub capabilities: Vec<WorkerCapability>,
 }
@@ -320,17 +358,17 @@ pub struct WorkerHeartbeatRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerHeartbeatResponse {
-    pub worker:       Worker,
-    pub assignments:  Vec<WorkerAssignment>,
+    pub worker: Worker,
+    pub assignments: Vec<WorkerAssignment>,
     pub acknowledged: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateDeploymentRequest {
-    pub name:             String,
-    pub artifact_ref:     String,
+    pub name: String,
+    pub artifact_ref: String,
     pub replicas_desired: u32,
-    pub requirement:      WorkloadRequirement,
+    pub requirement: WorkloadRequirement,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -341,7 +379,7 @@ pub struct CreateDeploymentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GetDeploymentResponse {
     pub deployment: ModelDeployment,
-    pub replicas:   Vec<ModelReplica>,
+    pub replicas: Vec<ModelReplica>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -356,14 +394,14 @@ pub struct ListReplicasResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UpdateReplicaStatusRequest {
-    pub lease_id:       String,
-    pub state:          ReplicaState,
+    pub lease_id: String,
+    pub state: ReplicaState,
     pub status_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseEnumError {
-    kind:  &'static str,
+    kind: &'static str,
     value: String,
 }
 
@@ -377,7 +415,7 @@ impl ParseEnumError {
 }
 
 impl Display for ParseEnumError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "invalid {}: {}", self.kind, self.value)
     }
 }
@@ -388,14 +426,14 @@ impl Error for ParseEnumError {}
 pub enum ClientError {
     Transport(String),
     HttpStatus {
-        code:            u16,
-        body:            String,
+        code: u16,
+        body: String,
         body_read_error: Option<String>,
     },
 }
 
 impl Display for ClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::Transport(message) => write!(f, "transport error: {message}"),
             Self::HttpStatus {
@@ -426,7 +464,10 @@ pub struct DlpClient {
 }
 
 impl DlpClient {
-    pub fn new(base_url: impl Into<String>) -> Self {
+    pub fn new<BaseUrl>(base_url: BaseUrl) -> Self
+    where
+        BaseUrl: Into<String>,
+    {
         Self {
             base_url: normalize_base_url(base_url.into()),
         }
@@ -602,7 +643,7 @@ impl DlpClient {
 }
 
 fn normalize_base_url(base_url: String) -> String {
-    base_url.trim_end_matches('/').to_string()
+    base_url.trim_end_matches('/').to_owned()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -626,7 +667,7 @@ impl DlpClient {
         request: &Request,
     ) -> Result<Response, ClientError>
     where
-        Request: Serialize + ?Sized,
+        Request: Serialize + Sync + ?Sized,
         Response: DeserializeOwned,
     {
         let response = reqwest::Client::new()
@@ -738,13 +779,13 @@ mod tests {
 
     fn sample_requirement() -> WorkloadRequirement {
         WorkloadRequirement {
-            framework:                Framework::Pytorch,
-            mode:                     WorkloadMode::Training,
-            device:                   DeviceClass::Cpu,
-            accelerator_runtime:      "cpu".to_string(),
-            architecture_family:      "generic".to_string(),
+            framework: Framework::Pytorch,
+            mode: WorkloadMode::Training,
+            device: DeviceClass::Cpu,
+            accelerator_runtime: "cpu".to_owned(),
+            architecture_family: "generic".to_owned(),
             memory_requirement_bytes: 1024,
-            concurrency_requirement:  1,
+            concurrency_requirement: 1,
         }
     }
 
@@ -761,17 +802,20 @@ mod tests {
 
     #[test]
     fn health_ok_response_uses_expected_defaults() {
-        assert_eq!(HealthResponse::ok("control-plane"), HealthResponse {
-            status:  "ok".to_string(),
-            service: "control-plane".to_string(),
-        });
+        assert_eq!(
+            HealthResponse::ok("control-plane"),
+            HealthResponse {
+                service: "control-plane".to_owned(),
+                status: "ok".to_owned(),
+            }
+        );
     }
 
     #[test]
     fn http_status_display_includes_error_body() {
         let error = ClientError::HttpStatus {
-            code:            500,
-            body:            "backend unavailable".to_owned(),
+            code: 500,
+            body: "backend unavailable".to_owned(),
             body_read_error: None,
         };
 
@@ -784,8 +828,8 @@ mod tests {
     #[test]
     fn http_status_display_reports_body_read_failure() {
         let error = ClientError::HttpStatus {
-            code:            502,
-            body:            String::new(),
+            code: 502,
+            body: String::new(),
             body_read_error: Some("connection reset".to_owned()),
         };
 
@@ -812,68 +856,72 @@ mod tests {
     #[test]
     fn serializes_shared_models() {
         let deployment = ModelDeployment {
-            id:               "deployment-1".to_string(),
-            name:             "trainer".to_string(),
-            artifact_ref:     "s3://artifacts/model".to_string(),
+            id: "deployment-1".to_owned(),
+            name: "trainer".to_owned(),
+            artifact_ref: "s3://artifacts/model".to_owned(),
             replicas_desired: 1,
-            requirement:      sample_requirement(),
-            status:           DeploymentStatusSummary {
+            requirement: sample_requirement(),
+            status: DeploymentStatusSummary {
                 pending_replicas: 1,
                 ..DeploymentStatusSummary::default()
             },
         };
         let replica = ModelReplica {
-            id:             "replica-1".to_string(),
-            deployment_id:  deployment.id.clone(),
-            worker_id:      Some("worker-1".to_string()),
-            lease_id:       Some("lease-1".to_string()),
-            state:          ReplicaState::Ready,
-            status_message: Some("ready".to_string()),
+            id: "replica-1".to_owned(),
+            deployment_id: deployment.id.clone(),
+            worker_id: Some("worker-1".to_owned()),
+            lease_id: Some("lease-1".to_owned()),
+            state: ReplicaState::Ready,
+            status_message: Some("ready".to_owned()),
         };
         let worker = Worker {
-            id:                "worker-1".to_string(),
-            display_name:      "trainer-1".to_string(),
-            state:             WorkerState::Ready,
-            capabilities:      vec![WorkerCapability {
-                framework:              Framework::Pytorch,
-                mode:                   WorkloadMode::Training,
-                device:                 DeviceClass::Cpu,
-                accelerator_runtime:    "cpu".to_string(),
-                architecture_family:    "generic".to_string(),
+            id: "worker-1".to_owned(),
+            display_name: "trainer-1".to_owned(),
+            state: WorkerState::Ready,
+            capabilities: vec![WorkerCapability {
+                framework: Framework::Pytorch,
+                mode: WorkloadMode::Training,
+                device: DeviceClass::Cpu,
+                accelerator_runtime: "cpu".to_owned(),
+                architecture_family: "generic".to_owned(),
                 available_memory_bytes: 4096,
-                concurrency_slots:      2,
+                concurrency_slots: 2,
             }],
             assigned_replicas: 1,
-            available_slots:   1,
+            available_slots: 1,
         };
 
-        let deployment_json = serde_json::to_string(&deployment);
-        let replica_json = serde_json::to_string(&replica);
-        let worker_json = serde_json::to_string(&worker);
+        let deployment_json =
+            serde_json::to_string(&deployment).expect("deployment serialization succeeds");
+        let replica_json =
+            serde_json::to_string(&replica).expect("replica serialization succeeds");
+        let worker_json = serde_json::to_string(&worker).expect("worker serialization succeeds");
 
-        assert!(deployment_json.is_ok());
-        assert!(replica_json.is_ok());
-        assert!(worker_json.is_ok());
+        assert!(!deployment_json.is_empty());
+        assert!(!replica_json.is_empty());
+        assert!(!worker_json.is_empty());
     }
 
     #[test]
     fn serializes_requests() {
         let create_request = CreateDeploymentRequest {
-            name:             "deploy".to_string(),
-            artifact_ref:     "artifact".to_string(),
+            name: "deploy".to_owned(),
+            artifact_ref: "artifact".to_owned(),
             replicas_desired: 1,
-            requirement:      sample_requirement(),
+            requirement: sample_requirement(),
         };
         let update_request = UpdateReplicaStatusRequest {
-            lease_id:       "lease-1".to_string(),
-            state:          ReplicaState::Starting,
-            status_message: Some("booting".to_string()),
+            lease_id: "lease-1".to_owned(),
+            state: ReplicaState::Starting,
+            status_message: Some("booting".to_owned()),
         };
 
-        let create_json = serde_json::to_string(&create_request);
-        let update_json = serde_json::to_string(&update_request);
+        let create_json =
+            serde_json::to_string(&create_request).expect("create request serialization succeeds");
+        let update_json =
+            serde_json::to_string(&update_request).expect("update request serialization succeeds");
 
-        assert!(create_json.is_ok());
-        assert!(update_json.is_ok());
+        assert!(!create_json.is_empty());
+        assert!(!update_json.is_empty());
     }
 }

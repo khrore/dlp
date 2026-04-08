@@ -1,3 +1,9 @@
+//! Binary entrypoint for the DLP UI crate.
+#![expect(
+    clippy::absolute_paths,
+    reason = "Qualified standard-library paths are acceptable in this small entrypoint."
+)]
+
 use client_sdk as _;
 use console_error_panic_hook as _;
 use leptos as _;
@@ -15,7 +21,7 @@ fn main() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> std::process::ExitCode {
-    use std::io::{self, Write};
+    use std::io::{self, Write as _};
 
     let mut stderr = io::stderr().lock();
     let _ignored = stderr.write_all(

@@ -1,25 +1,35 @@
+//! Shared CLI and REPL entrypoint for DLP.
+#![expect(
+    missing_docs,
+    reason = "This binary crate is driven by clap metadata instead of rustdoc."
+)]
+#![expect(
+    clippy::missing_docs_in_private_items,
+    reason = "Internal CLI parsing helpers stay local to this binary crate."
+)]
+
 use anyhow::{Result, bail};
 use app_config::{DlpConfig, load_dlp_config};
 use clap::{Args as ClapArgs, Parser, Subcommand};
 use client_sdk::{
-    CreateDeploymentRequest, DeploymentStatusSummary, DeviceClass, DlpClient, Framework,
-    ModelDeployment, ModelReplica, WorkloadMode, WorkloadRequirement,
+    CreateDeploymentRequest, DeviceClass, DlpClient, Framework, ModelDeployment, ModelReplica,
+    WorkloadMode, WorkloadRequirement,
 };
 #[cfg(test)]
 use control_plane as _;
-use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 #[derive(Debug, Parser)]
 #[command(name = "dlp", about = "DLP client with shared CLI and REPL")]
 struct Args {
     #[arg(long, global = true)]
-    api_scheme: Option<String>,
-
-    #[arg(long, global = true)]
     api_host: Option<String>,
 
     #[arg(long, global = true)]
     api_port: Option<u16>,
+
+    #[arg(long, global = true)]
+    api_scheme: Option<String>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -27,13 +37,13 @@ struct Args {
 
 #[derive(Debug, Clone, Subcommand)]
 enum Command {
-    Health,
-    #[command(subcommand)]
-    Workers(WorkersCommand),
     #[command(subcommand)]
     Deployments(DeploymentsCommand),
+    Health,
     #[command(subcommand)]
     Replicas(ReplicasCommand),
+    #[command(subcommand)]
+    Workers(WorkersCommand),
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -43,8 +53,8 @@ enum WorkersCommand {
 
 #[derive(Debug, Clone, Subcommand)]
 enum DeploymentsCommand {
-    Submit(SubmitDeploymentArgs),
     Get(GetDeploymentArgs),
+    Submit(SubmitDeploymentArgs),
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -55,34 +65,34 @@ enum ReplicasCommand {
 #[derive(Debug, Clone, ClapArgs)]
 struct SubmitDeploymentArgs {
     #[arg(long)]
-    name: String,
+    accelerator_runtime: String,
 
     #[arg(long)]
     artifact_ref: String,
 
     #[arg(long)]
-    replicas: u32,
+    architecture_family: String,
 
     #[arg(long)]
-    framework: Framework,
-
-    #[arg(long)]
-    mode: WorkloadMode,
+    concurrency: u32,
 
     #[arg(long)]
     device: DeviceClass,
 
     #[arg(long)]
-    accelerator_runtime: String,
-
-    #[arg(long)]
-    architecture_family: String,
+    framework: Framework,
 
     #[arg(long)]
     memory_bytes: u64,
 
     #[arg(long)]
-    concurrency: u32,
+    mode: WorkloadMode,
+
+    #[arg(long)]
+    name: String,
+
+    #[arg(long)]
+    replicas: u32,
 }
 
 #[derive(Debug, Clone, ClapArgs)]
@@ -98,9 +108,9 @@ struct ListReplicasArgs {
 
 #[derive(Debug, Clone)]
 enum InteractiveCommand {
+    Exit,
     Health,
     Help,
-    Exit,
 }
 
 #[tokio::main]
@@ -110,8 +120,8 @@ async fn main() -> Result<()> {
     let client = DlpClient::new(resolve_config(args)?.api.base_url());
 
     match command {
-        Some(command) => {
-            let output = execute_command(command, &client).await?;
+        Some(parsed_command) => {
+            let output = execute_command(parsed_command, &client).await?;
             let mut stdout = io::stdout();
             stdout.write_all(output.as_bytes()).await?;
             stdout.write_all(b"\n").await?;
@@ -147,7 +157,7 @@ async fn execute_command(command: Command, client: &DlpClient) -> Result<String>
         Command::Workers(WorkersCommand::List) => {
             let response = client.list_workers().await?;
             if response.workers.is_empty() {
-                return Ok("No workers registered.".to_string());
+                return Ok("No workers registered.".to_owned());
             }
 
             Ok(response
@@ -209,9 +219,9 @@ async fn execute_command(command: Command, client: &DlpClient) -> Result<String>
             let response = client.get_deployment(&args.deployment_id).await?;
             let mut lines = vec![format_deployment(&response.deployment)];
             if response.replicas.is_empty() {
-                lines.push("Replicas: none".to_string());
+                lines.push("Replicas: none".to_owned());
             } else {
-                lines.push("Replicas:".to_string());
+                lines.push("Replicas:".to_owned());
                 lines.extend(response.replicas.into_iter().map(format_replica));
             }
 
@@ -220,7 +230,7 @@ async fn execute_command(command: Command, client: &DlpClient) -> Result<String>
         Command::Replicas(ReplicasCommand::List(args)) => {
             let response = client.list_replicas(args.deployment_id.as_deref()).await?;
             if response.replicas.is_empty() {
-                return Ok("No replicas found.".to_string());
+                return Ok("No replicas found.".to_owned());
             }
 
             Ok(response
@@ -254,11 +264,11 @@ fn format_deployment(deployment: &ModelDeployment) -> String {
 fn format_replica(replica: ModelReplica) -> String {
     let worker = replica
         .worker_id
-        .unwrap_or_else(|| "unassigned".to_string());
-    let lease = replica.lease_id.unwrap_or_else(|| "none".to_string());
+        .unwrap_or_else(|| "unassigned".to_owned());
+    let lease = replica.lease_id.unwrap_or_else(|| "none".to_owned());
     let message = replica
         .status_message
-        .unwrap_or_else(|| "no status".to_string());
+        .unwrap_or_else(|| "no status".to_owned());
 
     format!(
         "{} deployment={} state={} worker={} lease={} message={}",
@@ -322,8 +332,10 @@ fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
 
 #[cfg(test)]
 mod tests {
-    use clap::Parser;
-    use client_sdk::{Framework, ReplicaState, WorkloadMode, WorkloadRequirement};
+    use clap::Parser as _;
+    use client_sdk::{
+        DeploymentStatusSummary, Framework, ReplicaState, WorkloadMode, WorkloadRequirement,
+    };
 
     use super::{
         Args, Command, DeploymentStatusSummary, DeviceClass, InteractiveCommand, ModelDeployment,
@@ -351,12 +363,9 @@ mod tests {
     fn rejects_unknown_interactive_commands() {
         let error = parse_interactive_command("workers");
         assert!(error.is_err());
-        assert!(
-            error
-                .err()
-                .map(|value| value.to_string().contains("unknown command"))
-                .unwrap_or(false)
-        );
+        assert!(error
+            .err()
+            .is_some_and(|value| value.to_string().contains("unknown command")));
     }
 
     #[test]
@@ -413,16 +422,16 @@ mod tests {
     #[test]
     fn formats_deployment_summary() {
         let deployment = ModelDeployment {
-            id:               "deployment-1".to_string(),
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            id:               "deployment-1".to_owned(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      WorkloadRequirement {
                 framework:                Framework::Pytorch,
                 mode:                     WorkloadMode::Training,
                 device:                   DeviceClass::Cpu,
-                accelerator_runtime:      "cpu".to_string(),
-                architecture_family:      "generic".to_string(),
+                accelerator_runtime:      "cpu".to_owned(),
+                architecture_family:      "generic".to_owned(),
                 memory_requirement_bytes: 1024,
                 concurrency_requirement:  1,
             },
@@ -438,12 +447,12 @@ mod tests {
     #[test]
     fn formats_replica_summary() {
         let replica = ModelReplica {
-            id:             "replica-1".to_string(),
-            deployment_id:  "deployment-1".to_string(),
-            worker_id:      Some("worker-1".to_string()),
-            lease_id:       Some("lease-1".to_string()),
+            id:             "replica-1".to_owned(),
+            deployment_id:  "deployment-1".to_owned(),
+            worker_id:      Some("worker-1".to_owned()),
+            lease_id:       Some("lease-1".to_owned()),
             state:          ReplicaState::Ready,
-            status_message: Some("ready".to_string()),
+            status_message: Some("ready".to_owned()),
         };
 
         let formatted = format_replica(replica);

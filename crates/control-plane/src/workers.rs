@@ -10,7 +10,7 @@ use client_sdk::{
 
 use crate::{reconcile::reconcile_once, state::SharedState};
 
-pub(crate) async fn register_worker(
+pub async fn register_worker(
     State(state): State<SharedState>,
     Json(request): Json<RegisterWorkerRequest>,
 ) -> Result<Json<RegisterWorkerResponse>, (StatusCode, String)> {
@@ -23,7 +23,7 @@ pub(crate) async fn register_worker(
     Ok(Json(response))
 }
 
-pub(crate) async fn heartbeat_worker(
+pub async fn heartbeat_worker(
     State(state): State<SharedState>,
     Path(worker_id): Path<String>,
     Json(request): Json<WorkerHeartbeatRequest>,
@@ -43,7 +43,7 @@ pub(crate) async fn heartbeat_worker(
     Ok(Json(response))
 }
 
-pub(crate) async fn list_workers(
+pub async fn list_workers(
     State(state): State<SharedState>,
 ) -> Result<Json<ListWorkersResponse>, (StatusCode, String)> {
     let response = {

@@ -1,3 +1,5 @@
+//! Shared configuration loading for DLP binaries and build scripts.
+
 use std::{
     env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -6,23 +8,31 @@ use std::{
 
 use figment::{
     Figment,
-    providers::{Env, Format, Serialized, Toml},
+    providers::{Env, Format as _, Serialized, Toml},
 };
 use serde::{Deserialize, Serialize};
 
-type ConfigError = Box<figment::Error>;
-
+/// Default scheme for HTTP endpoints.
 const DEFAULT_HTTP_SCHEME: &str = "http";
+/// Default hostname for local development.
 const DEFAULT_LOCALHOST: &str = "127.0.0.1";
+/// Default service port.
 const DEFAULT_PORT: u16 = 3000;
 
+/// Error type returned when configuration extraction fails.
+pub type ConfigError = Box<figment::Error>;
+
+/// Host and port for a socket listener.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HostPortConfig {
+    /// Host interface to bind.
     pub host: IpAddr,
+    /// TCP port to bind.
     pub port: u16,
 }
 
 impl Default for HostPortConfig {
+    #[inline]
     fn default() -> Self {
         Self {
             host: IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -32,32 +42,43 @@ impl Default for HostPortConfig {
 }
 
 impl HostPortConfig {
+    /// Builds a socket address from the configured host and port.
+    #[inline]
+    #[must_use]
     pub fn socket_addr(&self) -> SocketAddr {
         SocketAddr::from((self.host, self.port))
     }
 }
 
+/// Endpoint configuration for HTTP clients.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EndpointConfig {
+    /// Hostname or IP address.
+    #[serde(default = "default_localhost")]
+    pub host: String,
+    /// TCP port.
+    #[serde(default = "default_port")]
+    pub port: u16,
+    /// URL scheme.
     #[serde(default = "default_http_scheme")]
     pub scheme: String,
-    #[serde(default = "default_localhost")]
-    pub host:   String,
-    #[serde(default = "default_port")]
-    pub port:   u16,
 }
 
 impl Default for EndpointConfig {
+    #[inline]
     fn default() -> Self {
         Self {
+            host: default_localhost(),
+            port: default_port(),
             scheme: default_http_scheme(),
-            host:   default_localhost(),
-            port:   default_port(),
         }
     }
 }
 
 impl EndpointConfig {
+    /// Returns the normalized base URL for the configured endpoint.
+    #[inline]
+    #[must_use]
     pub fn base_url(&self) -> String {
         let host = match self.host.parse::<IpAddr>() {
             Ok(IpAddr::V6(_)) => format!("[{}]", self.host),
@@ -68,20 +89,26 @@ impl EndpointConfig {
     }
 }
 
+/// Control-plane specific configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ControlPlaneConfig {
+    /// Bind address for the HTTP server.
     #[serde(default)]
     pub server: HostPortConfig,
 }
 
+/// CLI client configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DlpConfig {
+    /// API endpoint for the control plane.
     #[serde(default)]
     pub api: EndpointConfig,
 }
 
+/// UI configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct UiConfig {
+    /// API endpoint for the control plane.
     #[serde(default)]
     pub api: EndpointConfig,
 }
@@ -91,41 +118,97 @@ struct RootConfig {
     #[serde(default)]
     control_plane: ControlPlaneConfig,
     #[serde(default)]
-    dlp:           DlpConfig,
+    dlp: DlpConfig,
     #[serde(default)]
-    ui:            UiConfig,
+    ui: UiConfig,
 }
 
+/// Loads the control-plane server configuration from the current directory context.
+///
+/// # Errors
+///
+/// Returns an error if the current working directory cannot be read or if configuration
+/// extraction fails.
+#[inline]
 pub fn load_control_plane_config() -> Result<ControlPlaneConfig, ConfigError> {
     extract_root_config().map(|config| config.control_plane)
 }
 
+/// Loads the CLI client configuration from the current directory context.
+///
+/// # Errors
+///
+/// Returns an error if the current working directory cannot be read or if configuration
+/// extraction fails.
+#[inline]
 pub fn load_dlp_config() -> Result<DlpConfig, ConfigError> {
     extract_root_config().map(|config| config.dlp)
 }
 
+/// Loads the UI configuration from the current directory context.
+///
+/// # Errors
+///
+/// Returns an error if the current working directory cannot be read or if configuration
+/// extraction fails.
+#[inline]
 pub fn load_ui_config() -> Result<UiConfig, ConfigError> {
     extract_root_config().map(|config| config.ui)
 }
 
+/// Loads the UI configuration starting from an explicit directory.
+///
+/// # Errors
+///
+/// Returns an error if configuration extraction fails.
+#[inline]
 pub fn load_ui_config_from_dir(start_dir: &Path) -> Result<UiConfig, ConfigError> {
     extract_root_config_from_dir(start_dir).map(|config| config.ui)
 }
 
+/// Finds the nearest `config.toml` visible from `start_dir`.
+#[inline]
+#[must_use]
 pub fn find_config_path_from_dir(start_dir: &Path) -> Option<PathBuf> {
     find_config_path(start_dir)
 }
 
-fn default_http_scheme() -> String {
-    DEFAULT_HTTP_SCHEME.to_string()
+fn base_figment(start_dir: &Path) -> Figment {
+    let defaults = Figment::from(Serialized::defaults(RootConfig::default()));
+    let with_file = if let Some(config_path) = find_config_path_from_dir(start_dir) {
+        defaults.merge(Toml::file(config_path))
+    } else {
+        defaults
+    };
+
+    with_file
+        .merge(env_provider("DLP_CONTROL_PLANE_SERVER_", "control_plane.server"))
+        .merge(env_provider("DLP_DLP_API_", "dlp.api"))
+        .merge(env_provider("DLP_UI_API_", "ui.api"))
 }
 
-fn default_localhost() -> String {
-    DEFAULT_LOCALHOST.to_string()
+fn default_http_scheme() -> String {
+    DEFAULT_HTTP_SCHEME.to_owned()
 }
 
 const fn default_port() -> u16 {
     DEFAULT_PORT
+}
+
+fn default_localhost() -> String {
+    DEFAULT_LOCALHOST.to_owned()
+}
+
+fn env_provider(prefix: &str, section: &str) -> Env {
+    let section_name = section.to_owned();
+    Env::prefixed(prefix).map(move |key| {
+        let field = key.as_str().to_ascii_lowercase();
+        format!("{section_name}.{field}").into()
+    })
+}
+
+fn extract_from_figment(figment: &Figment) -> Result<RootConfig, ConfigError> {
+    figment.extract::<RootConfig>().map_err(Box::new)
 }
 
 fn extract_root_config() -> Result<RootConfig, ConfigError> {
@@ -135,24 +218,8 @@ fn extract_root_config() -> Result<RootConfig, ConfigError> {
 }
 
 fn extract_root_config_from_dir(start_dir: &Path) -> Result<RootConfig, ConfigError> {
-    extract_from_figment(base_figment(start_dir))
-}
-
-fn base_figment(start_dir: &Path) -> Figment {
-    let figment = Figment::from(Serialized::defaults(RootConfig::default()));
-    let figment = if let Some(config_path) = find_config_path_from_dir(start_dir) {
-        figment.merge(Toml::file(config_path))
-    } else {
-        figment
-    };
-
-    figment
-        .merge(env_provider(
-            "DLP_CONTROL_PLANE_SERVER_",
-            "control_plane.server",
-        ))
-        .merge(env_provider("DLP_DLP_API_", "dlp.api"))
-        .merge(env_provider("DLP_UI_API_", "ui.api"))
+    let figment = base_figment(start_dir);
+    extract_from_figment(&figment)
 }
 
 fn find_config_path(start_dir: &Path) -> Option<PathBuf> {
@@ -173,21 +240,10 @@ fn find_config_path_with_override(
         .find(|path| path.is_file())
 }
 
-fn env_provider(prefix: &str, section: &str) -> Env {
-    let section = section.to_string();
-    Env::prefixed(prefix).map(move |key| {
-        let field = key.as_str().to_ascii_lowercase();
-        format!("{section}.{field}").into()
-    })
-}
-
-fn extract_from_figment(figment: Figment) -> Result<RootConfig, ConfigError> {
-    figment.extract::<RootConfig>().map_err(Box::new)
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
+        env::temp_dir,
         fs,
         net::{IpAddr, Ipv4Addr},
         path::PathBuf,
@@ -204,9 +260,9 @@ mod tests {
     #[test]
     fn endpoint_base_url_uses_structured_fields() {
         let config = EndpointConfig {
-            scheme: "https".to_string(),
-            host:   "dlp.example.com".to_string(),
-            port:   443,
+            host: "dlp.example.com".to_owned(),
+            port: 443,
+            scheme: "https".to_owned(),
         };
 
         assert_eq!(config.base_url(), "https://dlp.example.com:443");
@@ -215,9 +271,9 @@ mod tests {
     #[test]
     fn endpoint_base_url_preserves_ipv4_formatting() {
         let config = EndpointConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 3000,
             scheme: "http".to_owned(),
-            host:   "127.0.0.1".to_owned(),
-            port:   3000,
         };
 
         assert_eq!(config.base_url(), "http://127.0.0.1:3000");
@@ -226,9 +282,9 @@ mod tests {
     #[test]
     fn endpoint_base_url_brackets_ipv6_hosts() {
         let config = EndpointConfig {
+            host: "::1".to_owned(),
+            port: 3000,
             scheme: "http".to_owned(),
-            host:   "::1".to_owned(),
-            port:   3000,
         };
 
         assert_eq!(config.base_url(), "http://[::1]:3000");
@@ -254,20 +310,18 @@ mod tests {
                     port: 4000,
                 },
             },
-            dlp:           DlpConfig {
+            dlp: DlpConfig {
                 api: EndpointConfig {
+                    host: "api.example.com".to_owned(),
+                    port: 8443,
                     scheme: "https".to_owned(),
-                    host:   "api.example.com".to_owned(),
-                    port:   8443,
                 },
             },
-            ui:            UiConfig::default(),
+            ui: UiConfig::default(),
         };
 
-        let config = extract_from_figment(
-            Figment::from(Serialized::defaults(defaults)).merge(Serialized::defaults(overrides)),
-        )
-        .expect("nested config extracts");
+        let merged = Figment::from(Serialized::defaults(defaults)).merge(Serialized::defaults(overrides));
+        let config = extract_from_figment(&merged).expect("nested config extracts");
 
         assert_eq!(config.control_plane.server.port, 4000);
         assert_eq!(config.dlp.api.base_url(), "https://api.example.com:8443");
@@ -284,7 +338,7 @@ mod tests {
 
         assert_eq!(
             find_config_path_with_override(Some(env_config.clone()), &test_dir),
-            Some(env_config.clone())
+            Some(env_config)
         );
 
         fs::remove_dir_all(&test_dir).unwrap_or_else(|error| {
@@ -305,10 +359,7 @@ mod tests {
             panic!("failed to create ancestor config fixture: {error}");
         });
 
-        assert_eq!(
-            find_config_path_from_dir(&nested_dir),
-            Some(config_path.clone())
-        );
+        assert_eq!(find_config_path_from_dir(&nested_dir), Some(config_path));
 
         fs::remove_dir_all(&test_dir).unwrap_or_else(|error| {
             panic!("failed to remove temp dir: {error}");
@@ -320,7 +371,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or_default();
-        let path = std::env::temp_dir().join(format!("dlp-app-config-{suffix}-{unique}"));
+        let path = temp_dir().join(format!("dlp-app-config-{suffix}-{unique}"));
         fs::create_dir_all(&path).unwrap_or_else(|error| {
             panic!("failed to create temp dir: {error}");
         });

@@ -1,12 +1,18 @@
+#![expect(
+    clippy::missing_inline_in_public_items,
+    reason = "The public spawn helper is not performance-sensitive."
+)]
+
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::state::{DEFAULT_RECONCILE_INTERVAL, DEFAULT_WORKER_LOST_TIMEOUT, SharedState};
 
-pub(crate) async fn reconcile_once(state: &SharedState) {
+pub async fn reconcile_once(state: &SharedState) {
     let mut guard = state.lock().await;
     guard.reconcile(DEFAULT_WORKER_LOST_TIMEOUT);
 }
 
+/// Spawns the background reconcile loop for the shared application state.
 pub fn spawn_reconcile_loop(state: SharedState) {
     tokio::spawn(async move {
         let mut ticker = interval(DEFAULT_RECONCILE_INTERVAL);

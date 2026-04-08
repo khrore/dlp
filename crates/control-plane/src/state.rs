@@ -1,3 +1,8 @@
+#![expect(
+    clippy::arbitrary_source_item_ordering,
+    reason = "State methods are grouped by lifecycle rather than alphabetically."
+)]
+
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     sync::Arc,
@@ -15,11 +20,13 @@ use tokio::sync::Mutex;
 
 use crate::scheduler::{available_capacity_for_requirement, worker_is_eligible};
 
-pub(crate) const DEFAULT_WORKER_LOST_TIMEOUT: Duration = Duration::from_secs(15);
-pub(crate) const DEFAULT_RECONCILE_INTERVAL: Duration = Duration::from_secs(1);
+pub const DEFAULT_WORKER_LOST_TIMEOUT: Duration = Duration::from_secs(15);
+pub const DEFAULT_RECONCILE_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Shared mutable application state guarded by a Tokio mutex.
 pub type SharedState = Arc<Mutex<AppState>>;
 
+/// In-memory state used by the control-plane handlers and reconcile loop.
 #[derive(Debug)]
 pub struct AppState {
     next_id:     u64,
@@ -42,6 +49,7 @@ pub(crate) enum UpdateReplicaStatusError {
     LeaseConflict(String),
 }
 
+/// Creates a new shared in-memory application state value.
 pub fn new_shared_state() -> SharedState {
     Arc::new(Mutex::new(AppState::new()))
 }
@@ -403,7 +411,7 @@ impl AppState {
                         )
                         .map(|(slots, _)| slots)
                     })
-                    .fold(0_u32, u32::saturating_add);
+                    .fold(0u32, u32::saturating_add);
 
                 record.worker.assigned_replicas = active_leases.len() as u32;
                 record.worker.available_slots = available_slots;
@@ -517,7 +525,10 @@ impl AppState {
     #[cfg(test)]
     pub(crate) fn force_last_heartbeat_age(&mut self, worker_id: &str, elapsed: Duration) -> bool {
         if let Some(record) = self.workers.get_mut(worker_id) {
-            record.last_heartbeat_at = Instant::now() - elapsed;
+            let Some(last_heartbeat_at) = Instant::now().checked_sub(elapsed) else {
+                return false;
+            };
+            record.last_heartbeat_at = last_heartbeat_at;
             return true;
         }
 
