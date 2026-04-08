@@ -3,6 +3,7 @@ use clap::Parser;
 use client_sdk as _;
 use env_logger as _;
 use log::info;
+use serde as _;
 #[cfg(test)]
 use serde_json as _;
 use tokio::net::TcpListener;
@@ -34,9 +35,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let address = config.server.socket_addr();
     let listener = TcpListener::bind(address).await?;
+    let state = control_plane::new_shared_state();
+    control_plane::spawn_reconcile_loop(state.clone());
 
     info!("control-plane listening on http://{address}");
-    axum::serve(listener, control_plane::app()).await?;
+    axum::serve(listener, control_plane::app(state)).await?;
 
     Ok(())
 }

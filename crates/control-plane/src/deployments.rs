@@ -1,0 +1,80 @@
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+    http::StatusCode,
+};
+use client_sdk::{
+    CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse, ListReplicasResponse,
+    ModelReplica, UpdateReplicaStatusRequest,
+};
+use serde::Deserialize;
+
+use crate::{reconcile::reconcile_once, state::SharedState};
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct ReplicaListQuery {
+    pub(crate) deployment_id: Option<String>,
+}
+
+pub(crate) async fn create_deployment(
+    State(state): State<SharedState>,
+    Json(request): Json<CreateDeploymentRequest>,
+) -> Result<Json<CreateDeploymentResponse>, (StatusCode, String)> {
+    let response = {
+        let mut guard = state.lock().await;
+        guard.create_deployment(request)
+    };
+    reconcile_once(&state).await;
+
+    Ok(Json(response))
+}
+
+pub(crate) async fn get_deployment(
+    State(state): State<SharedState>,
+    Path(deployment_id): Path<String>,
+) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
+    let response = {
+        let mut guard = state.lock().await;
+        guard.get_deployment(&deployment_id)
+    }
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("unknown deployment: {deployment_id}"),
+        )
+    })?;
+
+    Ok(Json(response))
+}
+
+pub(crate) async fn list_replicas(
+    State(state): State<SharedState>,
+    Query(query): Query<ReplicaListQuery>,
+) -> Result<Json<ListReplicasResponse>, (StatusCode, String)> {
+    let response = {
+        let guard = state.lock().await;
+        guard.list_replicas(query.deployment_id.as_deref())
+    };
+
+    Ok(Json(response))
+}
+
+pub(crate) async fn update_replica_status(
+    State(state): State<SharedState>,
+    Path(replica_id): Path<String>,
+    Json(request): Json<UpdateReplicaStatusRequest>,
+) -> Result<Json<ModelReplica>, (StatusCode, String)> {
+    let response = {
+        let mut guard = state.lock().await;
+        guard.update_replica_status(&replica_id, request)
+    }
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("unknown replica: {replica_id}"),
+        )
+    })?;
+    reconcile_once(&state).await;
+
+    Ok(Json(response))
+}

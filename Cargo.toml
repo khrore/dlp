@@ -4,6 +4,7 @@ members = [
     "crates/client-sdk",
     "crates/control-plane",
     "crates/dlp",
+    "crates/pytorch-worker",
     "crates/ui",
 ]
 resolver = "2"

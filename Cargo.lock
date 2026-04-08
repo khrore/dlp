@@ -343,6 +343,7 @@ dependencies = [
  "gloo-net",
  "reqwest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -442,6 +443,7 @@ dependencies = [
  "client-sdk",
  "env_logger",
  "log",
+ "serde",
  "serde_json",
  "tokio",
  "tower",
@@ -1653,6 +1655,17 @@ dependencies = [
  "syn",
  "version_check",
  "yansi",
+]
+
+[[package]]
+name = "pytorch-worker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "client-sdk",
+ "control-plane",
+ "tokio",
 ]
 
 [[package]]
