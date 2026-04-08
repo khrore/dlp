@@ -1,12 +1,4 @@
 //! Shared CLI and REPL entrypoint for DLP.
-#![expect(
-    missing_docs,
-    reason = "This binary crate is driven by clap metadata instead of rustdoc."
-)]
-#![expect(
-    clippy::missing_docs_in_private_items,
-    reason = "Internal CLI parsing helpers stay local to this binary crate."
-)]
 
 use anyhow::{Result, bail};
 use app_config::{DlpConfig, load_dlp_config};
@@ -68,10 +60,10 @@ struct SubmitDeploymentArgs {
     accelerator_runtime: String,
 
     #[arg(long)]
-    artifact_ref: String,
+    architecture_family: String,
 
     #[arg(long)]
-    architecture_family: String,
+    artifact_ref: String,
 
     #[arg(long)]
     concurrency: u32,

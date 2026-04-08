@@ -1,28 +1,4 @@
 //! Axum application and integration tests for the DLP control plane.
-#![expect(
-    clippy::arbitrary_source_item_ordering,
-    reason = "This crate keeps imports and modules grouped by runtime role."
-)]
-#![expect(
-    clippy::absolute_paths,
-    reason = "Integration tests use explicit fully-qualified types for clarity."
-)]
-#![expect(
-    clippy::let_underscore_drop,
-    reason = "Integration tests intentionally ignore intermediate setup responses."
-)]
-#![expect(
-    clippy::pub_use,
-    reason = "The library re-exports its primary state and reconcile entrypoints."
-)]
-#![expect(
-    clippy::significant_drop_tightening,
-    reason = "Tests intentionally scope mutex guards before running follow-up assertions."
-)]
-#![expect(
-    clippy::str_to_string,
-    reason = "Test fixtures favor direct string literals for readability."
-)]
 
 use app_config as _;
 use axum::{

@@ -1,12 +1,4 @@
-//! Stub PyTorch worker used to exercise the control plane.
-#![expect(
-    missing_docs,
-    reason = "This binary crate is configured through clap metadata."
-)]
-#![expect(
-    clippy::missing_docs_in_private_items,
-    reason = "Worker lifecycle helpers stay local to this binary crate."
-)]
+//! Stub `PyTorch` worker used to exercise the control plane.
 
 use std::{
     collections::HashMap,

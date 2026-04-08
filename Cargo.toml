@@ -337,8 +337,6 @@ mem_forget = { level = "warn" }
 min_ident_chars = { level = "warn" }
 # Checks assertions without a custom panic message.
 missing_assert_message = { level = "warn" }
-# Warns if there is missing documentation for any private documentable item.
-missing_docs_in_private_items = { level = "warn" }
 # Checks if a provided method is used implicitly by a trait implementation.
 missing_trait_methods = { level = "warn" }
 # Detects public item names that are prefixed or suffixed by the containing public module’s name.

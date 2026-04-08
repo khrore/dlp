@@ -1,12 +1,4 @@
 //! Binary entrypoint for the DLP control-plane server.
-#![expect(
-    missing_docs,
-    reason = "This binary crate is configured through clap metadata."
-)]
-#![expect(
-    clippy::missing_docs_in_private_items,
-    reason = "Binary entrypoint internals stay local to this crate."
-)]
 
 use app_config::load_control_plane_config;
 use clap::Parser;

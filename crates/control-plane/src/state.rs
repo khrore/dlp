@@ -1,8 +1,3 @@
-#![expect(
-    clippy::arbitrary_source_item_ordering,
-    reason = "State methods are grouped by lifecycle rather than alphabetically."
-)]
-
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     sync::Arc,
@@ -20,8 +15,8 @@ use tokio::sync::Mutex;
 
 use crate::scheduler::{available_capacity_for_requirement, worker_is_eligible};
 
-pub const DEFAULT_WORKER_LOST_TIMEOUT: Duration = Duration::from_secs(15);
-pub const DEFAULT_RECONCILE_INTERVAL: Duration = Duration::from_secs(1);
+pub(crate) const DEFAULT_WORKER_LOST_TIMEOUT: Duration = Duration::from_secs(15);
+pub(crate) const DEFAULT_RECONCILE_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Shared mutable application state guarded by a Tokio mutex.
 pub type SharedState = Arc<Mutex<AppState>>;

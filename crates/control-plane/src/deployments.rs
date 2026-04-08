@@ -15,7 +15,6 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-/// Query parameters for filtering replica listings.
 pub struct ReplicaListQuery {
     deployment_id: Option<String>,
 }
@@ -26,7 +25,7 @@ impl ReplicaListQuery {
     }
 }
 
-pub async fn create_deployment(
+pub(crate) async fn create_deployment(
     State(state): State<SharedState>,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<CreateDeploymentResponse>, (StatusCode, String)> {
@@ -39,7 +38,7 @@ pub async fn create_deployment(
     Ok(Json(response))
 }
 
-pub async fn get_deployment(
+pub(crate) async fn get_deployment(
     State(state): State<SharedState>,
     Path(deployment_id): Path<String>,
 ) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
@@ -57,7 +56,7 @@ pub async fn get_deployment(
     Ok(Json(response))
 }
 
-pub async fn list_replicas(
+pub(crate) async fn list_replicas(
     State(state): State<SharedState>,
     Query(query): Query<ReplicaListQuery>,
 ) -> Result<Json<ListReplicasResponse>, (StatusCode, String)> {
@@ -69,7 +68,7 @@ pub async fn list_replicas(
     Ok(Json(response))
 }
 
-pub async fn update_replica_status(
+pub(crate) async fn update_replica_status(
     State(state): State<SharedState>,
     Path(replica_id): Path<String>,
     Json(request): Json<UpdateReplicaStatusRequest>,

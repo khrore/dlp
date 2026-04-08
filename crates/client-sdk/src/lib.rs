@@ -1,36 +1,4 @@
 //! Shared models and HTTP client helpers for DLP components.
-#![expect(
-    missing_docs,
-    reason = "These wire-format models are intentionally lightweight and derive their shape from serde."
-)]
-#![expect(
-    clippy::arbitrary_source_item_ordering,
-    reason = "The SDK groups related transport models by feature area instead of alphabetically."
-)]
-#![expect(
-    clippy::missing_inline_in_public_items,
-    reason = "These small helpers do not need explicit inlining annotations."
-)]
-#![expect(
-    clippy::missing_errors_doc,
-    reason = "The shared client methods use a uniform `ClientError` contract."
-)]
-#![expect(
-    clippy::missing_trait_methods,
-    reason = "Default trait methods on `Error` are intentionally inherited."
-)]
-#![expect(
-    clippy::must_use_candidate,
-    reason = "These simple accessors are already obvious from naming and type signatures."
-)]
-#![expect(
-    clippy::multiple_inherent_impl,
-    reason = "Target-specific client transport helpers are split by cfg."
-)]
-#![expect(
-    clippy::needless_pass_by_value,
-    reason = "Normalizing an owned base URL keeps the constructor API simple."
-)]
 
 use std::{
     error::Error,

@@ -1,13 +1,8 @@
-#![expect(
-    clippy::missing_inline_in_public_items,
-    reason = "The public spawn helper is not performance-sensitive."
-)]
-
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::state::{DEFAULT_RECONCILE_INTERVAL, DEFAULT_WORKER_LOST_TIMEOUT, SharedState};
 
-pub async fn reconcile_once(state: &SharedState) {
+pub(crate) async fn reconcile_once(state: &SharedState) {
     let mut guard = state.lock().await;
     guard.reconcile(DEFAULT_WORKER_LOST_TIMEOUT);
 }

@@ -12,9 +12,7 @@ use client_sdk::DlpClient;
 use console_error_panic_hook as _;
 use leptos::{prelude::*, task::spawn_local};
 
-/// Default copy shown before the first health check.
 const DEFAULT_STATUS: &str = "Click the button to check server health.";
-/// API base URL injected by the build script.
 const API_BASE_URL: &str = env!("DLP_UI_API_BASE_URL");
 
 /// Renders the main application shell.

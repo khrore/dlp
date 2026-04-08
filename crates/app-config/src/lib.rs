@@ -12,11 +12,8 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
-/// Default scheme for HTTP endpoints.
 const DEFAULT_HTTP_SCHEME: &str = "http";
-/// Default hostname for local development.
 const DEFAULT_LOCALHOST: &str = "127.0.0.1";
-/// Default service port.
 const DEFAULT_PORT: u16 = 3000;
 
 /// Error type returned when configuration extraction fails.
