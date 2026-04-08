@@ -83,9 +83,9 @@ mod tests {
 
     fn worker_request(device: DeviceClass, slots: u32) -> RegisterWorkerRequest {
         RegisterWorkerRequest {
-            worker_id:     "worker-1".to_string(),
-            display_name:  "trainer-1".to_string(),
-            capabilities:  vec![client_sdk::WorkerCapability {
+            worker_id:    "worker-1".to_string(),
+            display_name: "trainer-1".to_string(),
+            capabilities: vec![client_sdk::WorkerCapability {
                 framework: Framework::Pytorch,
                 mode: WorkloadMode::Training,
                 device,
@@ -94,8 +94,13 @@ mod tests {
                 available_memory_bytes: 8192,
                 concurrency_slots: slots,
             }],
-            heartbeat_ttl: None,
         }
+    }
+
+    fn first_assignment(
+        response: Option<WorkerHeartbeatResponse>,
+    ) -> Option<client_sdk::WorkerAssignment> {
+        response.and_then(|heartbeat| heartbeat.assignments.into_iter().next())
     }
 
     async fn json_response<Response>(
@@ -379,22 +384,36 @@ mod tests {
             }),
         )
         .await;
-        let replica_id = heartbeat
-            .and_then(|response| {
-                response
-                    .assignments
-                    .first()
-                    .map(|assignment| assignment.replica_id.clone())
-            })
+        let assignment = first_assignment(heartbeat);
+        let replica_id = assignment
+            .as_ref()
+            .map(|value| value.replica_id.clone())
+            .unwrap_or_default();
+        let lease_id = assignment
+            .as_ref()
+            .map(|value| value.lease_id.clone())
             .unwrap_or_default();
 
-        let _ = json_response::<client_sdk::ModelReplica>(
+        let failure = json_response::<client_sdk::ModelReplica>(
             app(state.clone()),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
+                    lease_id:       lease_id.clone(),
                     state:          ReplicaState::Failed,
                     status_message: Some("provider failed".to_string()),
+                },
+            ),
+        )
+        .await;
+        let stale_retry = json_response::<client_sdk::ModelReplica>(
+            app(state.clone()),
+            post_json(
+                &format!("/replicas/{replica_id}/status"),
+                &UpdateReplicaStatusRequest {
+                    lease_id,
+                    state: ReplicaState::Ready,
+                    status_message: Some("late ready".to_string()),
                 },
             ),
         )
@@ -409,6 +428,8 @@ mod tests {
         let (status, replicas) =
             json_response::<ListReplicasResponse>(app(state), get_request("/replicas")).await;
 
+        assert_eq!(failure.0, StatusCode::OK);
+        assert_eq!(stale_retry.0, StatusCode::CONFLICT);
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             replicas.as_ref().map(|response| response
@@ -425,6 +446,213 @@ mod tests {
                 .filter(|replica| replica.state == ReplicaState::Assigned
                     || replica.state == ReplicaState::Pending)
                 .count()),
+            Some(1)
+        );
+    }
+
+    #[tokio::test]
+    async fn re_registering_worker_expires_old_lease_and_restores_pending_capacity() {
+        let state = new_shared_state();
+        let create_request = CreateDeploymentRequest {
+            name:             "trainer".to_string(),
+            artifact_ref:     "artifact://model".to_string(),
+            replicas_desired: 1,
+            requirement:      sample_requirement(DeviceClass::Cpu),
+        };
+        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
+            post_json("/deployments", &create_request),
+        )
+        .await;
+        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        let _ = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let assignment = first_assignment(assigned_heartbeat);
+        assert!(assignment.is_some());
+
+        let (status, registration) = json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        let (deployment_status, deployment) = json_response::<GetDeploymentResponse>(
+            app(state),
+            get_request("/deployments/deployment-1"),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            registration.map(|response| response.worker.state),
+            Some(WorkerState::Starting)
+        );
+        assert_eq!(deployment_status, StatusCode::OK);
+        assert_eq!(
+            deployment
+                .as_ref()
+                .map(|response| response.deployment.status.stopped_replicas),
+            Some(1)
+        );
+        assert_eq!(
+            deployment
+                .as_ref()
+                .map(|response| response.deployment.status.pending_replicas),
+            Some(1)
+        );
+        assert_eq!(deployment.map(|response| response.replicas.len()), Some(2));
+    }
+
+    #[tokio::test]
+    async fn stale_status_update_with_expired_lease_is_rejected() {
+        let state = new_shared_state();
+        let create_request = CreateDeploymentRequest {
+            name:             "trainer".to_string(),
+            artifact_ref:     "artifact://model".to_string(),
+            replicas_desired: 1,
+            requirement:      sample_requirement(DeviceClass::Cpu),
+        };
+        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
+            post_json("/deployments", &create_request),
+        )
+        .await;
+        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        let _ = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let assignment = first_assignment(assigned_heartbeat);
+        let replica_id = assignment
+            .as_ref()
+            .map(|value| value.replica_id.clone())
+            .unwrap_or_default();
+        let lease_id = assignment
+            .as_ref()
+            .map(|value| value.lease_id.clone())
+            .unwrap_or_default();
+
+        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
+            app(state.clone()),
+            post_json(
+                &format!("/replicas/{replica_id}/status"),
+                &UpdateReplicaStatusRequest {
+                    lease_id,
+                    state: ReplicaState::Ready,
+                    status_message: Some("late ready".to_string()),
+                },
+            ),
+        )
+        .await;
+        let (deployment_status, deployment) = json_response::<GetDeploymentResponse>(
+            app(state),
+            get_request("/deployments/deployment-1"),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(stale_update, None);
+        assert_eq!(deployment_status, StatusCode::OK);
+        assert_eq!(
+            deployment.map(|response| response.deployment.status.pending_replicas),
+            Some(1)
+        );
+    }
+
+    #[tokio::test]
+    async fn wrong_lease_id_is_rejected_for_replica_update() {
+        let state = new_shared_state();
+        let create_request = CreateDeploymentRequest {
+            name:             "trainer".to_string(),
+            artifact_ref:     "artifact://model".to_string(),
+            replicas_desired: 1,
+            requirement:      sample_requirement(DeviceClass::Cpu),
+        };
+        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
+            post_json("/deployments", &create_request),
+        )
+        .await;
+        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        let _ = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+        let replica_id = first_assignment(assigned_heartbeat)
+            .map(|assignment| assignment.replica_id)
+            .unwrap_or_default();
+
+        let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
+            app(state.clone()),
+            post_json(
+                &format!("/replicas/{replica_id}/status"),
+                &UpdateReplicaStatusRequest {
+                    lease_id:       "lease-does-not-match".to_string(),
+                    state:          ReplicaState::Ready,
+                    status_message: Some("late ready".to_string()),
+                },
+            ),
+        )
+        .await;
+        let (deployment_status, deployment) = json_response::<GetDeploymentResponse>(
+            app(state),
+            get_request("/deployments/deployment-1"),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(stale_update, None);
+        assert_eq!(deployment_status, StatusCode::OK);
+        assert_eq!(
+            deployment.map(|response| response.deployment.status.assigned_replicas),
             Some(1)
         );
     }

@@ -9,7 +9,10 @@ use client_sdk::{
 };
 use serde::Deserialize;
 
-use crate::{reconcile::reconcile_once, state::SharedState};
+use crate::{
+    reconcile::reconcile_once,
+    state::{SharedState, UpdateReplicaStatusError},
+};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ReplicaListQuery {
@@ -68,11 +71,12 @@ pub(crate) async fn update_replica_status(
         let mut guard = state.lock().await;
         guard.update_replica_status(&replica_id, request)
     }
-    .ok_or_else(|| {
-        (
+    .map_err(|error| match error {
+        UpdateReplicaStatusError::UnknownReplica => (
             StatusCode::NOT_FOUND,
             format!("unknown replica: {replica_id}"),
-        )
+        ),
+        UpdateReplicaStatusError::LeaseConflict(message) => (StatusCode::CONFLICT, message),
     })?;
     reconcile_once(&state).await;
 

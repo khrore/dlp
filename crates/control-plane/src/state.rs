@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -36,6 +36,12 @@ struct WorkerRecord {
     assignment_queue:  VecDeque<WorkerAssignment>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum UpdateReplicaStatusError {
+    UnknownReplica,
+    LeaseConflict(String),
+}
+
 pub fn new_shared_state() -> SharedState {
     Arc::new(Mutex::new(AppState::new()))
 }
@@ -55,15 +61,20 @@ impl AppState {
         &mut self,
         request: RegisterWorkerRequest,
     ) -> RegisterWorkerResponse {
+        let worker_id = request.worker_id.clone();
+        let affected_deployments = if self.workers.contains_key(&worker_id) {
+            self.expire_worker_leases(&worker_id, "worker restarted before replica completed")
+        } else {
+            Vec::new()
+        };
         let worker = Worker {
-            id:                request.worker_id.clone(),
+            id:                worker_id.clone(),
             display_name:      request.display_name,
             state:             WorkerState::Starting,
             capabilities:      request.capabilities,
             assigned_replicas: 0,
             available_slots:   0,
         };
-        let worker_id = worker.id.clone();
 
         self.workers.insert(worker_id, WorkerRecord {
             worker:            worker.clone(),
@@ -71,8 +82,17 @@ impl AppState {
             assignment_queue:  VecDeque::new(),
         });
         self.refresh_worker_summaries();
+        for deployment_id in affected_deployments {
+            self.refresh_deployment_status(&deployment_id);
+        }
 
-        RegisterWorkerResponse { worker }
+        RegisterWorkerResponse {
+            worker: self
+                .workers
+                .get(&worker.id)
+                .map(|record| record.worker.clone())
+                .unwrap_or(worker),
+        }
     }
 
     pub(crate) fn heartbeat_worker(
@@ -165,31 +185,65 @@ impl AppState {
         &mut self,
         replica_id: &str,
         request: UpdateReplicaStatusRequest,
-    ) -> Option<ModelReplica> {
-        let (deployment_id, lease_id, updated_replica) = {
-            let replica = self.replicas.get_mut(replica_id)?;
+    ) -> Result<ModelReplica, UpdateReplicaStatusError> {
+        let current_lease_id = {
+            let replica = self
+                .replicas
+                .get(replica_id)
+                .ok_or(UpdateReplicaStatusError::UnknownReplica)?;
+            let current_lease_id = replica.lease_id.clone().ok_or_else(|| {
+                UpdateReplicaStatusError::LeaseConflict(format!(
+                    "replica {replica_id} is not owned by an active lease"
+                ))
+            })?;
+            if current_lease_id != request.lease_id {
+                return Err(UpdateReplicaStatusError::LeaseConflict(format!(
+                    "replica {replica_id} is owned by lease {current_lease_id}, not {}",
+                    request.lease_id
+                )));
+            }
+            current_lease_id
+        };
+
+        {
+            let lease = self.leases.get(&current_lease_id).ok_or_else(|| {
+                UpdateReplicaStatusError::LeaseConflict(format!(
+                    "unknown lease for replica {replica_id}: {current_lease_id}"
+                ))
+            })?;
+            if lease.replica_id != replica_id {
+                return Err(UpdateReplicaStatusError::LeaseConflict(format!(
+                    "lease {current_lease_id} does not belong to replica {replica_id}"
+                )));
+            }
+            if lease.state != LeaseState::Active {
+                return Err(UpdateReplicaStatusError::LeaseConflict(format!(
+                    "lease {current_lease_id} is no longer active"
+                )));
+            }
+        }
+
+        let (deployment_id, updated_replica) = {
+            let replica = self
+                .replicas
+                .get_mut(replica_id)
+                .ok_or(UpdateReplicaStatusError::UnknownReplica)?;
             replica.state = request.state;
             replica.status_message = request.status_message;
 
-            (
-                replica.deployment_id.clone(),
-                replica.lease_id.clone(),
-                replica.clone(),
-            )
+            (replica.deployment_id.clone(), replica.clone())
         };
 
         if matches!(
             updated_replica.state,
             ReplicaState::Failed | ReplicaState::Stopped
         ) {
-            if let Some(lease_id) = lease_id.as_deref() {
-                self.release_lease(lease_id);
-            }
+            self.release_lease(&current_lease_id);
         }
 
         self.refresh_deployment_status(&deployment_id);
 
-        Some(updated_replica)
+        Ok(updated_replica)
     }
 
     pub(crate) fn reconcile(&mut self, lost_timeout: Duration) {
@@ -413,27 +467,40 @@ impl AppState {
         for worker_id in lost_worker_ids {
             if let Some(record) = self.workers.get_mut(&worker_id) {
                 record.worker.state = WorkerState::Lost;
-                record.assignment_queue.clear();
             }
+            for deployment_id in
+                self.expire_worker_leases(&worker_id, "worker lost before replica completed")
+            {
+                self.refresh_deployment_status(&deployment_id);
+            }
+        }
+    }
 
-            let affected_leases = self
-                .leases
-                .values()
-                .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
-                .map(|lease| lease.id.clone())
-                .collect::<Vec<_>>();
+    fn expire_worker_leases(&mut self, worker_id: &str, message: &str) -> Vec<String> {
+        if let Some(record) = self.workers.get_mut(worker_id) {
+            record.assignment_queue.clear();
+        }
 
-            for lease_id in affected_leases {
-                if let Some(lease) = self.leases.get_mut(&lease_id) {
-                    lease.state = LeaseState::Expired;
-                    if let Some(replica) = self.replicas.get_mut(&lease.replica_id) {
-                        replica.state = ReplicaState::Stopped;
-                        replica.status_message =
-                            Some("worker lost before replica completed".to_string());
-                    }
+        let affected_lease_ids = self
+            .leases
+            .values()
+            .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
+            .map(|lease| lease.id.clone())
+            .collect::<Vec<_>>();
+        let mut deployment_ids = BTreeSet::new();
+
+        for lease_id in affected_lease_ids {
+            if let Some(lease) = self.leases.get_mut(&lease_id) {
+                lease.state = LeaseState::Expired;
+                deployment_ids.insert(lease.deployment_id.clone());
+                if let Some(replica) = self.replicas.get_mut(&lease.replica_id) {
+                    replica.state = ReplicaState::Stopped;
+                    replica.status_message = Some(message.to_string());
                 }
             }
         }
+
+        deployment_ids.into_iter().collect()
     }
 
     fn release_lease(&mut self, lease_id: &str) {

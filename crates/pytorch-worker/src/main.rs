@@ -125,9 +125,9 @@ async fn main() -> Result<()> {
 
     client
         .register_worker(&RegisterWorkerRequest {
-            worker_id:     args.worker_id.clone(),
-            display_name:  args.display_name,
-            capabilities:  vec![WorkerCapability {
+            worker_id:    args.worker_id.clone(),
+            display_name: args.display_name,
+            capabilities: vec![WorkerCapability {
                 framework:              Framework::Pytorch,
                 mode:                   args.mode,
                 device:                 args.device,
@@ -136,7 +136,6 @@ async fn main() -> Result<()> {
                 available_memory_bytes: args.memory_bytes,
                 concurrency_slots:      args.concurrency_slots,
             }],
-            heartbeat_ttl: None,
         })
         .await?;
 
@@ -192,6 +191,7 @@ async fn process_assignment(
         sleep(LIFECYCLE_STEP_DELAY).await;
         client
             .update_replica_status(&assignment.replica_id, &UpdateReplicaStatusRequest {
+                lease_id:       assignment.lease_id.clone(),
                 state:          step.state.clone(),
                 status_message: Some(step.message.clone()),
             })

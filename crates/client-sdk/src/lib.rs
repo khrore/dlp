@@ -303,10 +303,9 @@ pub struct Worker {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RegisterWorkerRequest {
-    pub worker_id:     String,
-    pub display_name:  String,
-    pub capabilities:  Vec<WorkerCapability>,
-    pub heartbeat_ttl: Option<u64>,
+    pub worker_id:    String,
+    pub display_name: String,
+    pub capabilities: Vec<WorkerCapability>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -357,6 +356,7 @@ pub struct ListReplicasResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UpdateReplicaStatusRequest {
+    pub lease_id:       String,
     pub state:          ReplicaState,
     pub status_message: Option<String>,
 }
@@ -865,6 +865,7 @@ mod tests {
             requirement:      sample_requirement(),
         };
         let update_request = UpdateReplicaStatusRequest {
+            lease_id:       "lease-1".to_string(),
             state:          ReplicaState::Starting,
             status_message: Some("booting".to_string()),
         };
