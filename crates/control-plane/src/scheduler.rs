@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Scheduler helpers are visible through the crate-private module boundary."
+)]
+
 use client_sdk::{Worker, WorkerCapability, WorkerLease, WorkloadRequirement};
 
 pub(crate) fn capability_matches(
@@ -24,13 +29,13 @@ pub(crate) fn available_capacity_for_requirement(
             let used_slots = leases
                 .iter()
                 .filter(|lease| capability_matches(capability, &lease.requirement))
-                .fold(0u32, |total, lease| {
+                .fold(0, |total: u32, lease| {
                     total.saturating_add(lease.requirement.concurrency_requirement)
                 });
             let used_memory = leases
                 .iter()
                 .filter(|lease| capability_matches(capability, &lease.requirement))
-                .fold(0u64, |total, lease| {
+                .fold(0, |total: u64, lease| {
                     total.saturating_add(lease.requirement.memory_requirement_bytes)
                 });
 

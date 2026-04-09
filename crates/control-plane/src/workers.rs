@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Worker handlers are visible through the crate-private module boundary."
+)]
+
 use axum::{
     Json,
     extract::{Path, State},

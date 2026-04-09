@@ -1,4 +1,5 @@
 //! Shared models and HTTP client helpers for DLP components.
+#![doc(hidden)]
 
 use std::{
     error::Error,
@@ -11,17 +12,18 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HealthResponse {
     pub service: String,
-    pub status: String,
+    pub status:  String,
 }
 
 impl HealthResponse {
+    #[inline]
     pub fn ok<Service>(service: Service) -> Self
     where
         Service: Into<String>,
     {
         Self {
             service: service.into(),
-            status: "ok".to_owned(),
+            status:  "ok".to_owned(),
         }
     }
 }
@@ -29,8 +31,8 @@ impl HealthResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Framework {
-    Pytorch,
     Max,
+    Pytorch,
 }
 
 impl Framework {
@@ -43,6 +45,7 @@ impl Framework {
 }
 
 impl Display for Framework {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
@@ -51,6 +54,7 @@ impl Display for Framework {
 impl FromStr for Framework {
     type Err = ParseEnumError;
 
+    #[inline]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
             "pytorch" => Ok(Self::Pytorch),
@@ -63,8 +67,8 @@ impl FromStr for Framework {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkloadMode {
-    Training,
     Inference,
+    Training,
 }
 
 impl WorkloadMode {
@@ -77,6 +81,7 @@ impl WorkloadMode {
 }
 
 impl Display for WorkloadMode {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
@@ -85,6 +90,7 @@ impl Display for WorkloadMode {
 impl FromStr for WorkloadMode {
     type Err = ParseEnumError;
 
+    #[inline]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
             "training" => Ok(Self::Training),
@@ -97,10 +103,10 @@ impl FromStr for WorkloadMode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DeviceClass {
+    AppleGpu,
     Cpu,
     Cuda,
     Rocm,
-    AppleGpu,
 }
 
 impl DeviceClass {
@@ -115,6 +121,7 @@ impl DeviceClass {
 }
 
 impl Display for DeviceClass {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.write_str(self.as_str())
     }
@@ -123,6 +130,7 @@ impl Display for DeviceClass {
 impl FromStr for DeviceClass {
     type Err = ParseEnumError;
 
+    #[inline]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().as_str() {
             "cpu" => Ok(Self::Cpu),
@@ -137,14 +145,15 @@ impl FromStr for DeviceClass {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkerState {
-    Starting,
-    Ready,
     Draining,
-    Unhealthy,
     Lost,
+    Ready,
+    Starting,
+    Unhealthy,
 }
 
 impl Display for WorkerState {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Starting => "starting",
@@ -160,16 +169,17 @@ impl Display for WorkerState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplicaState {
-    Pending,
     Assigned,
-    Pulling,
-    Starting,
-    Ready,
     Failed,
+    Pending,
+    Pulling,
+    Ready,
+    Starting,
     Stopped,
 }
 
 impl Display for ReplicaState {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Pending => "pending",
@@ -188,11 +198,12 @@ impl Display for ReplicaState {
 #[serde(rename_all = "snake_case")]
 pub enum LeaseState {
     Active,
-    Released,
     Expired,
+    Released,
 }
 
 impl Display for LeaseState {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let value = match self {
             Self::Active => "active",
@@ -205,53 +216,55 @@ impl Display for LeaseState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerCapability {
-    pub framework: Framework,
-    pub mode: WorkloadMode,
-    pub device: DeviceClass,
-    pub accelerator_runtime: String,
-    pub architecture_family: String,
+    pub accelerator_runtime:    String,
+    pub architecture_family:    String,
     pub available_memory_bytes: u64,
-    pub concurrency_slots: u32,
+    pub concurrency_slots:      u32,
+    pub device:                 DeviceClass,
+    pub framework:              Framework,
+    pub mode:                   WorkloadMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkloadRequirement {
-    pub framework: Framework,
-    pub mode: WorkloadMode,
-    pub device: DeviceClass,
-    pub accelerator_runtime: String,
-    pub architecture_family: String,
+    pub accelerator_runtime:      String,
+    pub architecture_family:      String,
+    pub concurrency_requirement:  u32,
+    pub device:                   DeviceClass,
+    pub framework:                Framework,
     pub memory_requirement_bytes: u64,
-    pub concurrency_requirement: u32,
+    pub mode:                     WorkloadMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeploymentStatusSummary {
-    pub pending_replicas: u32,
     pub assigned_replicas: u32,
-    pub pulling_replicas: u32,
+    pub failed_replicas:   u32,
+    pub pending_replicas:  u32,
+    pub pulling_replicas:  u32,
+    pub ready_replicas:    u32,
     pub starting_replicas: u32,
-    pub ready_replicas: u32,
-    pub failed_replicas: u32,
-    pub stopped_replicas: u32,
+    pub stopped_replicas:  u32,
 }
 
 impl DeploymentStatusSummary {
     #[must_use]
+    #[inline]
     pub const fn new() -> Self {
         Self {
-            pending_replicas: 0,
+            pending_replicas:  0,
             assigned_replicas: 0,
-            pulling_replicas: 0,
+            pulling_replicas:  0,
             starting_replicas: 0,
-            ready_replicas: 0,
-            failed_replicas: 0,
-            stopped_replicas: 0,
+            ready_replicas:    0,
+            failed_replicas:   0,
+            stopped_replicas:  0,
         }
     }
 }
 
 impl Default for DeploymentStatusSummary {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -259,59 +272,59 @@ impl Default for DeploymentStatusSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelDeployment {
-    pub id: String,
-    pub name: String,
-    pub artifact_ref: String,
+    pub artifact_ref:     String,
+    pub id:               String,
+    pub name:             String,
     pub replicas_desired: u32,
-    pub requirement: WorkloadRequirement,
-    pub status: DeploymentStatusSummary,
+    pub requirement:      WorkloadRequirement,
+    pub status:           DeploymentStatusSummary,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModelReplica {
-    pub id: String,
-    pub deployment_id: String,
-    pub worker_id: Option<String>,
-    pub lease_id: Option<String>,
-    pub state: ReplicaState,
+    pub deployment_id:  String,
+    pub id:             String,
+    pub lease_id:       Option<String>,
+    pub state:          ReplicaState,
     pub status_message: Option<String>,
+    pub worker_id:      Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerLease {
-    pub id: String,
-    pub worker_id: String,
     pub deployment_id: String,
-    pub replica_id: String,
-    pub state: LeaseState,
-    pub requirement: WorkloadRequirement,
+    pub id:            String,
+    pub replica_id:    String,
+    pub requirement:   WorkloadRequirement,
+    pub state:         LeaseState,
+    pub worker_id:     String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerAssignment {
-    pub worker_id: String,
+    pub artifact_ref:  String,
     pub deployment_id: String,
-    pub replica_id: String,
-    pub lease_id: String,
-    pub artifact_ref: String,
-    pub requirement: WorkloadRequirement,
+    pub lease_id:      String,
+    pub replica_id:    String,
+    pub requirement:   WorkloadRequirement,
+    pub worker_id:     String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Worker {
-    pub id: String,
-    pub display_name: String,
-    pub state: WorkerState,
-    pub capabilities: Vec<WorkerCapability>,
     pub assigned_replicas: u32,
-    pub available_slots: u32,
+    pub available_slots:   u32,
+    pub capabilities:      Vec<WorkerCapability>,
+    pub display_name:      String,
+    pub id:                String,
+    pub state:             WorkerState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RegisterWorkerRequest {
-    pub worker_id: String,
-    pub display_name: String,
     pub capabilities: Vec<WorkerCapability>,
+    pub display_name: String,
+    pub worker_id:    String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -326,17 +339,17 @@ pub struct WorkerHeartbeatRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkerHeartbeatResponse {
-    pub worker: Worker,
-    pub assignments: Vec<WorkerAssignment>,
     pub acknowledged: bool,
+    pub assignments:  Vec<WorkerAssignment>,
+    pub worker:       Worker,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateDeploymentRequest {
-    pub name: String,
-    pub artifact_ref: String,
+    pub artifact_ref:     String,
+    pub name:             String,
     pub replicas_desired: u32,
-    pub requirement: WorkloadRequirement,
+    pub requirement:      WorkloadRequirement,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -347,7 +360,7 @@ pub struct CreateDeploymentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GetDeploymentResponse {
     pub deployment: ModelDeployment,
-    pub replicas: Vec<ModelReplica>,
+    pub replicas:   Vec<ModelReplica>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -362,14 +375,14 @@ pub struct ListReplicasResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UpdateReplicaStatusRequest {
-    pub lease_id: String,
-    pub state: ReplicaState,
+    pub lease_id:       String,
+    pub state:          ReplicaState,
     pub status_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseEnumError {
-    kind: &'static str,
+    kind:  &'static str,
     value: String,
 }
 
@@ -383,24 +396,30 @@ impl ParseEnumError {
 }
 
 impl Display for ParseEnumError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "invalid {}: {}", self.kind, self.value)
     }
 }
 
+#[expect(
+    clippy::missing_trait_methods,
+    reason = "The Error trait has default methods that are intentionally inherited."
+)]
 impl Error for ParseEnumError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClientError {
-    Transport(String),
     HttpStatus {
-        code: u16,
-        body: String,
+        code:            u16,
+        body:            String,
         body_read_error: Option<String>,
     },
+    Transport(String),
 }
 
 impl Display for ClientError {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::Transport(message) => write!(f, "transport error: {message}"),
@@ -424,6 +443,10 @@ impl Display for ClientError {
     }
 }
 
+#[expect(
+    clippy::missing_trait_methods,
+    reason = "The Error trait has default methods that are intentionally inherited."
+)]
 impl Error for ClientError {}
 
 #[derive(Debug, Clone)]
@@ -432,124 +455,44 @@ pub struct DlpClient {
 }
 
 impl DlpClient {
-    pub fn new<BaseUrl>(base_url: BaseUrl) -> Self
-    where
-        BaseUrl: Into<String>,
-    {
-        Self {
-            base_url: normalize_base_url(base_url.into()),
-        }
-    }
-
+    #[must_use]
+    #[inline]
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
 
-    pub fn health_url(&self) -> String {
-        format!("{}/health", self.base_url)
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
-        self.get_json(self.health_url()).await
+    #[inline]
+    pub async fn create_deployment(
+        &self,
+        request: &CreateDeploymentRequest,
+    ) -> Result<CreateDeploymentResponse, ClientError> {
+        self.post_json(self.deployments_url(), request).await
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
-        self.get_json(self.health_url()).await
+    #[inline]
+    pub async fn create_deployment(
+        &self,
+        request: &CreateDeploymentRequest,
+    ) -> Result<CreateDeploymentResponse, ClientError> {
+        self.post_json(self.deployments_url(), request).await
     }
 
-    pub fn workers_url(&self) -> String {
-        format!("{}/workers", self.base_url)
-    }
-
-    pub fn register_worker_url(&self) -> String {
-        format!("{}/register", self.workers_url())
-    }
-
-    pub fn worker_heartbeat_url(&self, worker_id: &str) -> String {
-        format!("{}/{worker_id}/heartbeat", self.workers_url())
-    }
-
-    pub fn deployments_url(&self) -> String {
-        format!("{}/deployments", self.base_url)
-    }
-
+    #[must_use]
+    #[inline]
     pub fn deployment_url(&self, deployment_id: &str) -> String {
         format!("{}/{}", self.deployments_url(), deployment_id)
     }
 
-    pub fn replicas_url(&self) -> String {
-        format!("{}/replicas", self.base_url)
-    }
-
-    pub fn replica_status_url(&self, replica_id: &str) -> String {
-        format!("{}/{replica_id}/status", self.replicas_url())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn register_worker(
-        &self,
-        request: &RegisterWorkerRequest,
-    ) -> Result<RegisterWorkerResponse, ClientError> {
-        self.post_json(self.register_worker_url(), request).await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn register_worker(
-        &self,
-        request: &RegisterWorkerRequest,
-    ) -> Result<RegisterWorkerResponse, ClientError> {
-        self.post_json(self.register_worker_url(), request).await
+    #[must_use]
+    #[inline]
+    pub fn deployments_url(&self) -> String {
+        format!("{}/deployments", self.base_url)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn heartbeat_worker(
-        &self,
-        worker_id: &str,
-        request: &WorkerHeartbeatRequest,
-    ) -> Result<WorkerHeartbeatResponse, ClientError> {
-        self.post_json(self.worker_heartbeat_url(worker_id), request)
-            .await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn heartbeat_worker(
-        &self,
-        worker_id: &str,
-        request: &WorkerHeartbeatRequest,
-    ) -> Result<WorkerHeartbeatResponse, ClientError> {
-        self.post_json(self.worker_heartbeat_url(worker_id), request)
-            .await
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
-        self.get_json(self.workers_url()).await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
-        self.get_json(self.workers_url()).await
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn create_deployment(
-        &self,
-        request: &CreateDeploymentRequest,
-    ) -> Result<CreateDeploymentResponse, ClientError> {
-        self.post_json(self.deployments_url(), request).await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn create_deployment(
-        &self,
-        request: &CreateDeploymentRequest,
-    ) -> Result<CreateDeploymentResponse, ClientError> {
-        self.post_json(self.deployments_url(), request).await
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
     pub async fn get_deployment(
         &self,
         deployment_id: &str,
@@ -558,6 +501,7 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
+    #[inline]
     pub async fn get_deployment(
         &self,
         deployment_id: &str,
@@ -566,56 +510,6 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn list_replicas(
-        &self,
-        deployment_id: Option<&str>,
-    ) -> Result<ListReplicasResponse, ClientError> {
-        let url = deployment_id.map_or_else(
-            || self.replicas_url(),
-            |value| format!("{}?deployment_id={value}", self.replicas_url()),
-        );
-        self.get_json(url).await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn list_replicas(
-        &self,
-        deployment_id: Option<&str>,
-    ) -> Result<ListReplicasResponse, ClientError> {
-        let url = deployment_id.map_or_else(
-            || self.replicas_url(),
-            |value| format!("{}?deployment_id={value}", self.replicas_url()),
-        );
-        self.get_json(url).await
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn update_replica_status(
-        &self,
-        replica_id: &str,
-        request: &UpdateReplicaStatusRequest,
-    ) -> Result<ModelReplica, ClientError> {
-        self.post_json(self.replica_status_url(replica_id), request)
-            .await
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn update_replica_status(
-        &self,
-        replica_id: &str,
-        request: &UpdateReplicaStatusRequest,
-    ) -> Result<ModelReplica, ClientError> {
-        self.post_json(self.replica_status_url(replica_id), request)
-            .await
-    }
-}
-
-fn normalize_base_url(base_url: String) -> String {
-    base_url.trim_end_matches('/').to_owned()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl DlpClient {
     async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
     where
         Response: DeserializeOwned,
@@ -629,6 +523,109 @@ impl DlpClient {
         parse_reqwest_response(response).await
     }
 
+    #[cfg(target_arch = "wasm32")]
+    async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
+    where
+        Response: DeserializeOwned,
+    {
+        let response = gloo_net::http::Request::get(&url)
+            .send()
+            .await
+            .map_err(|error| ClientError::Transport(error.to_string()))?;
+
+        parse_gloo_response(response).await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
+        self.get_json(self.health_url()).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
+        self.get_json(self.health_url()).await
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn health_url(&self) -> String {
+        format!("{}/health", self.base_url)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn heartbeat_worker(
+        &self,
+        worker_id: &str,
+        request: &WorkerHeartbeatRequest,
+    ) -> Result<WorkerHeartbeatResponse, ClientError> {
+        self.post_json(self.worker_heartbeat_url(worker_id), request)
+            .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn heartbeat_worker(
+        &self,
+        worker_id: &str,
+        request: &WorkerHeartbeatRequest,
+    ) -> Result<WorkerHeartbeatResponse, ClientError> {
+        self.post_json(self.worker_heartbeat_url(worker_id), request)
+            .await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn list_replicas(
+        &self,
+        deployment_id: Option<&str>,
+    ) -> Result<ListReplicasResponse, ClientError> {
+        let url = deployment_id.map_or_else(
+            || self.replicas_url(),
+            |value| format!("{}?deployment_id={value}", self.replicas_url()),
+        );
+        self.get_json(url).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn list_replicas(
+        &self,
+        deployment_id: Option<&str>,
+    ) -> Result<ListReplicasResponse, ClientError> {
+        let url = deployment_id.map_or_else(
+            || self.replicas_url(),
+            |value| format!("{}?deployment_id={value}", self.replicas_url()),
+        );
+        self.get_json(url).await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
+        self.get_json(self.workers_url()).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
+        self.get_json(self.workers_url()).await
+    }
+
+    #[inline]
+    pub fn new<BaseUrl>(base_url: BaseUrl) -> Self
+    where
+        BaseUrl: Into<String>,
+    {
+        let normalized_base_url = base_url.into();
+        Self {
+            base_url: normalize_base_url(&normalized_base_url),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     async fn post_json<Request, Response>(
         &self,
         url: String,
@@ -647,6 +644,101 @@ impl DlpClient {
 
         parse_reqwest_response(response).await
     }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn post_json<Request, Response>(
+        &self,
+        url: String,
+        request: &Request,
+    ) -> Result<Response, ClientError>
+    where
+        Request: Serialize + ?Sized,
+        Response: DeserializeOwned,
+    {
+        let request_builder = gloo_net::http::Request::post(&url)
+            .json(request)
+            .map_err(|error| ClientError::Transport(error.to_string()))?;
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|error| ClientError::Transport(error.to_string()))?;
+
+        parse_gloo_response(response).await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn register_worker(
+        &self,
+        request: &RegisterWorkerRequest,
+    ) -> Result<RegisterWorkerResponse, ClientError> {
+        self.post_json(self.register_worker_url(), request).await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn register_worker(
+        &self,
+        request: &RegisterWorkerRequest,
+    ) -> Result<RegisterWorkerResponse, ClientError> {
+        self.post_json(self.register_worker_url(), request).await
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn register_worker_url(&self) -> String {
+        format!("{}/register", self.workers_url())
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn replica_status_url(&self, replica_id: &str) -> String {
+        format!("{}/{replica_id}/status", self.replicas_url())
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn replicas_url(&self) -> String {
+        format!("{}/replicas", self.base_url)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    pub async fn update_replica_status(
+        &self,
+        replica_id: &str,
+        request: &UpdateReplicaStatusRequest,
+    ) -> Result<ModelReplica, ClientError> {
+        self.post_json(self.replica_status_url(replica_id), request)
+            .await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[inline]
+    pub async fn update_replica_status(
+        &self,
+        replica_id: &str,
+        request: &UpdateReplicaStatusRequest,
+    ) -> Result<ModelReplica, ClientError> {
+        self.post_json(self.replica_status_url(replica_id), request)
+            .await
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn worker_heartbeat_url(&self, worker_id: &str) -> String {
+        format!("{}/{worker_id}/heartbeat", self.workers_url())
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn workers_url(&self) -> String {
+        format!("{}/workers", self.base_url)
+    }
+}
+
+fn normalize_base_url(base_url: &str) -> String {
+    base_url.trim_end_matches('/').to_owned()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -673,41 +765,6 @@ where
         .json::<Response>()
         .await
         .map_err(|error| ClientError::Transport(error.to_string()))
-}
-
-#[cfg(target_arch = "wasm32")]
-impl DlpClient {
-    async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
-    where
-        Response: DeserializeOwned,
-    {
-        let response = gloo_net::http::Request::get(&url)
-            .send()
-            .await
-            .map_err(|error| ClientError::Transport(error.to_string()))?;
-
-        parse_gloo_response(response).await
-    }
-
-    async fn post_json<Request, Response>(
-        &self,
-        url: String,
-        request: &Request,
-    ) -> Result<Response, ClientError>
-    where
-        Request: Serialize + ?Sized,
-        Response: DeserializeOwned,
-    {
-        let request_builder = gloo_net::http::Request::post(&url)
-            .json(request)
-            .map_err(|error| ClientError::Transport(error.to_string()))?;
-        let response = request_builder
-            .send()
-            .await
-            .map_err(|error| ClientError::Transport(error.to_string()))?;
-
-        parse_gloo_response(response).await
-    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -747,13 +804,13 @@ mod tests {
 
     fn sample_requirement() -> WorkloadRequirement {
         WorkloadRequirement {
-            framework: Framework::Pytorch,
-            mode: WorkloadMode::Training,
-            device: DeviceClass::Cpu,
-            accelerator_runtime: "cpu".to_owned(),
-            architecture_family: "generic".to_owned(),
+            framework:                Framework::Pytorch,
+            mode:                     WorkloadMode::Training,
+            device:                   DeviceClass::Cpu,
+            accelerator_runtime:      "cpu".to_owned(),
+            architecture_family:      "generic".to_owned(),
             memory_requirement_bytes: 1024,
-            concurrency_requirement: 1,
+            concurrency_requirement:  1,
         }
     }
 
@@ -770,20 +827,17 @@ mod tests {
 
     #[test]
     fn health_ok_response_uses_expected_defaults() {
-        assert_eq!(
-            HealthResponse::ok("control-plane"),
-            HealthResponse {
-                service: "control-plane".to_owned(),
-                status: "ok".to_owned(),
-            }
-        );
+        assert_eq!(HealthResponse::ok("control-plane"), HealthResponse {
+            service: "control-plane".to_owned(),
+            status:  "ok".to_owned(),
+        });
     }
 
     #[test]
     fn http_status_display_includes_error_body() {
         let error = ClientError::HttpStatus {
-            code: 500,
-            body: "backend unavailable".to_owned(),
+            code:            500,
+            body:            "backend unavailable".to_owned(),
             body_read_error: None,
         };
 
@@ -796,8 +850,8 @@ mod tests {
     #[test]
     fn http_status_display_reports_body_read_failure() {
         let error = ClientError::HttpStatus {
-            code: 502,
-            body: String::new(),
+            code:            502,
+            body:            String::new(),
             body_read_error: Some("connection reset".to_owned()),
         };
 
@@ -824,45 +878,44 @@ mod tests {
     #[test]
     fn serializes_shared_models() {
         let deployment = ModelDeployment {
-            id: "deployment-1".to_owned(),
-            name: "trainer".to_owned(),
-            artifact_ref: "s3://artifacts/model".to_owned(),
+            id:               "deployment-1".to_owned(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "s3://artifacts/model".to_owned(),
             replicas_desired: 1,
-            requirement: sample_requirement(),
-            status: DeploymentStatusSummary {
+            requirement:      sample_requirement(),
+            status:           DeploymentStatusSummary {
                 pending_replicas: 1,
                 ..DeploymentStatusSummary::default()
             },
         };
         let replica = ModelReplica {
-            id: "replica-1".to_owned(),
-            deployment_id: deployment.id.clone(),
-            worker_id: Some("worker-1".to_owned()),
-            lease_id: Some("lease-1".to_owned()),
-            state: ReplicaState::Ready,
+            id:             "replica-1".to_owned(),
+            deployment_id:  deployment.id.clone(),
+            worker_id:      Some("worker-1".to_owned()),
+            lease_id:       Some("lease-1".to_owned()),
+            state:          ReplicaState::Ready,
             status_message: Some("ready".to_owned()),
         };
         let worker = Worker {
-            id: "worker-1".to_owned(),
-            display_name: "trainer-1".to_owned(),
-            state: WorkerState::Ready,
-            capabilities: vec![WorkerCapability {
-                framework: Framework::Pytorch,
-                mode: WorkloadMode::Training,
-                device: DeviceClass::Cpu,
-                accelerator_runtime: "cpu".to_owned(),
-                architecture_family: "generic".to_owned(),
+            id:                "worker-1".to_owned(),
+            display_name:      "trainer-1".to_owned(),
+            state:             WorkerState::Ready,
+            capabilities:      vec![WorkerCapability {
+                framework:              Framework::Pytorch,
+                mode:                   WorkloadMode::Training,
+                device:                 DeviceClass::Cpu,
+                accelerator_runtime:    "cpu".to_owned(),
+                architecture_family:    "generic".to_owned(),
                 available_memory_bytes: 4096,
-                concurrency_slots: 2,
+                concurrency_slots:      2,
             }],
             assigned_replicas: 1,
-            available_slots: 1,
+            available_slots:   1,
         };
 
         let deployment_json =
             serde_json::to_string(&deployment).expect("deployment serialization succeeds");
-        let replica_json =
-            serde_json::to_string(&replica).expect("replica serialization succeeds");
+        let replica_json = serde_json::to_string(&replica).expect("replica serialization succeeds");
         let worker_json = serde_json::to_string(&worker).expect("worker serialization succeeds");
 
         assert!(!deployment_json.is_empty());
@@ -873,14 +926,14 @@ mod tests {
     #[test]
     fn serializes_requests() {
         let create_request = CreateDeploymentRequest {
-            name: "deploy".to_owned(),
-            artifact_ref: "artifact".to_owned(),
+            name:             "deploy".to_owned(),
+            artifact_ref:     "artifact".to_owned(),
             replicas_desired: 1,
-            requirement: sample_requirement(),
+            requirement:      sample_requirement(),
         };
         let update_request = UpdateReplicaStatusRequest {
-            lease_id: "lease-1".to_owned(),
-            state: ReplicaState::Starting,
+            lease_id:       "lease-1".to_owned(),
+            state:          ReplicaState::Starting,
             status_message: Some("booting".to_owned()),
         };
 

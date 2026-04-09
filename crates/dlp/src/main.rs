@@ -254,9 +254,7 @@ fn format_deployment(deployment: &ModelDeployment) -> String {
 }
 
 fn format_replica(replica: ModelReplica) -> String {
-    let worker = replica
-        .worker_id
-        .unwrap_or_else(|| "unassigned".to_owned());
+    let worker = replica.worker_id.unwrap_or_else(|| "unassigned".to_owned());
     let lease = replica.lease_id.unwrap_or_else(|| "none".to_owned());
     let message = replica
         .status_message
@@ -330,8 +328,8 @@ mod tests {
     };
 
     use super::{
-        Args, Command, DeploymentStatusSummary, DeviceClass, InteractiveCommand, ModelDeployment,
-        ModelReplica, ReplicasCommand, SubmitDeploymentArgs, format_deployment, format_replica,
+        Args, Command, DeviceClass, InteractiveCommand, ModelDeployment, ModelReplica,
+        ReplicasCommand, SubmitDeploymentArgs, format_deployment, format_replica,
         parse_interactive_command,
     };
 
@@ -355,9 +353,11 @@ mod tests {
     fn rejects_unknown_interactive_commands() {
         let error = parse_interactive_command("workers");
         assert!(error.is_err());
-        assert!(error
-            .err()
-            .is_some_and(|value| value.to_string().contains("unknown command")));
+        assert!(
+            error
+                .err()
+                .is_some_and(|value| value.to_string().contains("unknown command"))
+        );
     }
 
     #[test]

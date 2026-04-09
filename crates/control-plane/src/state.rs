@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "State types are visible through the crate-private module boundary."
+)]
+
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     sync::Arc,
@@ -19,112 +24,58 @@ pub(crate) const DEFAULT_WORKER_LOST_TIMEOUT: Duration = Duration::from_secs(15)
 pub(crate) const DEFAULT_RECONCILE_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Shared mutable application state guarded by a Tokio mutex.
-pub type SharedState = Arc<Mutex<AppState>>;
+pub(crate) type SharedState = Arc<Mutex<AppState>>;
 
 /// In-memory state used by the control-plane handlers and reconcile loop.
 #[derive(Debug)]
-pub struct AppState {
-    next_id:     u64,
-    workers:     BTreeMap<String, WorkerRecord>,
+pub(crate) struct AppState {
     deployments: BTreeMap<String, ModelDeployment>,
-    replicas:    BTreeMap<String, ModelReplica>,
     leases:      BTreeMap<String, WorkerLease>,
+    next_id:     u64,
+    replicas:    BTreeMap<String, ModelReplica>,
+    workers:     BTreeMap<String, WorkerRecord>,
 }
 
 #[derive(Debug)]
 struct WorkerRecord {
-    worker:            Worker,
-    last_heartbeat_at: Instant,
     assignment_queue:  VecDeque<WorkerAssignment>,
+    last_heartbeat_at: Instant,
+    worker:            Worker,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum UpdateReplicaStatusError {
-    UnknownReplica,
     LeaseConflict(String),
-}
-
-/// Creates a new shared in-memory application state value.
-pub fn new_shared_state() -> SharedState {
-    Arc::new(Mutex::new(AppState::new()))
+    UnknownReplica,
 }
 
 impl AppState {
-    pub(crate) fn new() -> Self {
-        Self {
-            next_id:     0,
-            workers:     BTreeMap::new(),
-            deployments: BTreeMap::new(),
-            replicas:    BTreeMap::new(),
-            leases:      BTreeMap::new(),
-        }
-    }
-
-    pub(crate) fn register_worker(
+    fn build_assignment(
         &mut self,
-        request: RegisterWorkerRequest,
-    ) -> RegisterWorkerResponse {
-        let worker_id = request.worker_id.clone();
-        let affected_deployments = if self.workers.contains_key(&worker_id) {
-            self.expire_worker_leases(&worker_id, "worker restarted before replica completed")
-        } else {
-            Vec::new()
+        replica_id: &str,
+    ) -> Option<(String, WorkerLease, WorkerAssignment)> {
+        let replica = self.replicas.get(replica_id)?.clone();
+        let deployment = self.deployments.get(&replica.deployment_id)?.clone();
+        let candidate_worker_id = self.select_worker(&deployment.requirement)?;
+        let lease_id = self.next_id("lease");
+        let lease = WorkerLease {
+            id:            lease_id.clone(),
+            worker_id:     candidate_worker_id.clone(),
+            deployment_id: deployment.id.clone(),
+            replica_id:    replica.id.clone(),
+            requirement:   deployment.requirement.clone(),
+            state:         LeaseState::Active,
         };
-        let worker = Worker {
-            id:                worker_id.clone(),
-            display_name:      request.display_name,
-            state:             WorkerState::Starting,
-            capabilities:      request.capabilities,
-            assigned_replicas: 0,
-            available_slots:   0,
+        let assignment = WorkerAssignment {
+            artifact_ref: deployment.artifact_ref,
+            deployment_id: deployment.id,
+            lease_id,
+            replica_id: replica.id,
+            requirement: deployment.requirement,
+            worker_id: candidate_worker_id.clone(),
         };
 
-        self.workers.insert(worker_id, WorkerRecord {
-            worker:            worker.clone(),
-            last_heartbeat_at: Instant::now(),
-            assignment_queue:  VecDeque::new(),
-        });
-        self.refresh_worker_summaries();
-        for deployment_id in affected_deployments {
-            self.refresh_deployment_status(&deployment_id);
-        }
-
-        RegisterWorkerResponse {
-            worker: self
-                .workers
-                .get(&worker.id)
-                .map(|record| record.worker.clone())
-                .unwrap_or(worker),
-        }
-    }
-
-    pub(crate) fn heartbeat_worker(
-        &mut self,
-        worker_id: &str,
-        worker_state: WorkerState,
-    ) -> Option<WorkerHeartbeatResponse> {
-        let record = self.workers.get_mut(worker_id)?;
-        let assignments = record.assignment_queue.drain(..).collect::<Vec<_>>();
-        record.last_heartbeat_at = Instant::now();
-        record.worker.state = worker_state;
-        self.refresh_worker_summaries();
-
-        Some(WorkerHeartbeatResponse {
-            worker: self.workers.get(worker_id)?.worker.clone(),
-            assignments,
-            acknowledged: true,
-        })
-    }
-
-    pub(crate) fn list_workers(&mut self) -> ListWorkersResponse {
-        self.refresh_worker_summaries();
-        ListWorkersResponse {
-            workers: self
-                .workers
-                .values()
-                .map(|record| record.worker.clone())
-                .collect(),
-        }
+        Some((candidate_worker_id, lease, assignment))
     }
 
     pub(crate) fn create_deployment(
@@ -132,7 +83,7 @@ impl AppState {
         request: CreateDeploymentRequest,
     ) -> CreateDeploymentResponse {
         let deployment_id = self.next_id("deployment");
-        let deployment = ModelDeployment {
+        let created_deployment = ModelDeployment {
             id:               deployment_id.clone(),
             name:             request.name,
             artifact_ref:     request.artifact_ref,
@@ -142,7 +93,7 @@ impl AppState {
         };
 
         self.deployments
-            .insert(deployment_id.clone(), deployment.clone());
+            .insert(deployment_id.clone(), created_deployment.clone());
         self.ensure_deployment_capacity(&deployment_id);
         self.refresh_deployment_status(&deployment_id);
 
@@ -150,9 +101,111 @@ impl AppState {
             .deployments
             .get(&deployment_id)
             .cloned()
-            .unwrap_or(deployment);
+            .unwrap_or(created_deployment);
 
         CreateDeploymentResponse { deployment }
+    }
+
+    fn ensure_deployment_capacity(&mut self, deployment_id: &str) {
+        let Some(deployment) = self.deployments.get(deployment_id).cloned() else {
+            return;
+        };
+
+        let active_replicas_count = self
+            .replicas
+            .values()
+            .filter(|replica| {
+                replica.deployment_id == deployment_id
+                    && matches!(
+                        replica.state,
+                        ReplicaState::Pending
+                            | ReplicaState::Assigned
+                            | ReplicaState::Pulling
+                            | ReplicaState::Starting
+                            | ReplicaState::Ready
+                    )
+            })
+            .count();
+        let active_replicas = u32::try_from(active_replicas_count).unwrap_or(u32::MAX);
+
+        if active_replicas >= deployment.replicas_desired {
+            return;
+        }
+
+        for _ in active_replicas..deployment.replicas_desired {
+            let replica_id = self.next_id("replica");
+            self.replicas.insert(replica_id.clone(), ModelReplica {
+                deployment_id:  deployment_id.to_owned(),
+                id:             replica_id,
+                lease_id:       None,
+                state:          ReplicaState::Pending,
+                status_message: Some("pending scheduling".to_owned()),
+                worker_id:      None,
+            });
+        }
+    }
+
+    fn expire_lost_workers(&mut self, lost_timeout: Duration) {
+        let lost_worker_ids = self
+            .workers
+            .iter()
+            .filter(|(_, record)| {
+                record.worker.state != WorkerState::Lost
+                    && record.last_heartbeat_at.elapsed() >= lost_timeout
+            })
+            .map(|(worker_id, _)| worker_id.clone())
+            .collect::<Vec<_>>();
+
+        for worker_id in lost_worker_ids {
+            if let Some(record) = self.workers.get_mut(&worker_id) {
+                record.worker.state = WorkerState::Lost;
+            }
+            for deployment_id in
+                self.expire_worker_leases(&worker_id, "worker lost before replica completed")
+            {
+                self.refresh_deployment_status(&deployment_id);
+            }
+        }
+    }
+
+    fn expire_worker_leases(&mut self, worker_id: &str, message: &str) -> Vec<String> {
+        if let Some(record) = self.workers.get_mut(worker_id) {
+            record.assignment_queue.clear();
+        }
+
+        let affected_lease_ids = self
+            .leases
+            .values()
+            .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
+            .map(|lease| lease.id.clone())
+            .collect::<Vec<_>>();
+        let mut deployment_ids = BTreeSet::new();
+
+        for lease_id in affected_lease_ids {
+            if let Some(lease) = self.leases.get_mut(&lease_id) {
+                lease.state = LeaseState::Expired;
+                deployment_ids.insert(lease.deployment_id.clone());
+                if let Some(replica) = self.replicas.get_mut(&lease.replica_id) {
+                    replica.state = ReplicaState::Stopped;
+                    replica.status_message = Some(message.to_owned());
+                }
+            }
+        }
+
+        deployment_ids.into_iter().collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_last_heartbeat_age(&mut self, worker_id: &str, elapsed: Duration) -> bool {
+        if let Some(record) = self.workers.get_mut(worker_id) {
+            let Some(last_heartbeat_at) = Instant::now().checked_sub(elapsed) else {
+                return false;
+            };
+            record.last_heartbeat_at = last_heartbeat_at;
+            return true;
+        }
+
+        false
     }
 
     pub(crate) fn get_deployment(&mut self, deployment_id: &str) -> Option<GetDeploymentResponse> {
@@ -171,6 +224,24 @@ impl AppState {
         })
     }
 
+    pub(crate) fn heartbeat_worker(
+        &mut self,
+        worker_id: &str,
+        worker_state: WorkerState,
+    ) -> Option<WorkerHeartbeatResponse> {
+        let record = self.workers.get_mut(worker_id)?;
+        let assignments = record.assignment_queue.drain(..).collect::<Vec<_>>();
+        record.last_heartbeat_at = Instant::now();
+        record.worker.state = worker_state;
+        self.refresh_worker_summaries();
+
+        Some(WorkerHeartbeatResponse {
+            acknowledged: true,
+            assignments,
+            worker: self.workers.get(worker_id)?.worker.clone(),
+        })
+    }
+
     pub(crate) fn list_replicas(&self, deployment_id: Option<&str>) -> ListReplicasResponse {
         let replicas = self
             .replicas
@@ -182,6 +253,218 @@ impl AppState {
             .collect();
 
         ListReplicasResponse { replicas }
+    }
+
+    pub(crate) fn list_workers(&mut self) -> ListWorkersResponse {
+        self.refresh_worker_summaries();
+        ListWorkersResponse {
+            workers: self
+                .workers
+                .values()
+                .map(|record| record.worker.clone())
+                .collect(),
+        }
+    }
+
+    pub(crate) const fn new() -> Self {
+        Self {
+            deployments: BTreeMap::new(),
+            leases:      BTreeMap::new(),
+            next_id:     0,
+            replicas:    BTreeMap::new(),
+            workers:     BTreeMap::new(),
+        }
+    }
+
+    fn next_id(&mut self, prefix: &str) -> String {
+        self.next_id = self.next_id.saturating_add(1);
+        format!("{prefix}-{}", self.next_id)
+    }
+
+    pub(crate) fn reconcile(&mut self, lost_timeout: Duration) {
+        self.expire_lost_workers(lost_timeout);
+
+        let deployment_ids = self.deployments.keys().cloned().collect::<Vec<_>>();
+        for deployment_id in deployment_ids {
+            self.ensure_deployment_capacity(&deployment_id);
+            self.refresh_deployment_status(&deployment_id);
+        }
+
+        let pending_replica_ids = self
+            .replicas
+            .values()
+            .filter(|replica| replica.state == ReplicaState::Pending)
+            .map(|replica| replica.id.clone())
+            .collect::<Vec<_>>();
+
+        for replica_id in pending_replica_ids {
+            let Some((worker_id, lease, assignment)) = self.build_assignment(&replica_id) else {
+                continue;
+            };
+
+            self.leases.insert(lease.id.clone(), lease.clone());
+
+            if let Some(replica) = self.replicas.get_mut(&replica_id) {
+                replica.state = ReplicaState::Assigned;
+                replica.worker_id = Some(worker_id.clone());
+                replica.lease_id = Some(lease.id.clone());
+                replica.status_message = Some(format!("assigned to {worker_id}"));
+            }
+
+            if let Some(record) = self.workers.get_mut(&worker_id) {
+                record.assignment_queue.push_back(assignment);
+            }
+        }
+
+        self.refresh_worker_summaries();
+        let affected_deployment_ids = self.deployments.keys().cloned().collect::<Vec<_>>();
+        for deployment_id in affected_deployment_ids {
+            self.refresh_deployment_status(&deployment_id);
+        }
+    }
+
+    fn refresh_deployment_status(&mut self, deployment_id: &str) {
+        let Some(deployment) = self.deployments.get_mut(deployment_id) else {
+            return;
+        };
+
+        let summary = self
+            .replicas
+            .values()
+            .filter(|replica| replica.deployment_id == deployment_id)
+            .fold(
+                DeploymentStatusSummary::default(),
+                |mut summary, replica| {
+                    match replica.state {
+                        ReplicaState::Pending => {
+                            summary.pending_replicas = summary.pending_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Assigned => {
+                            summary.assigned_replicas = summary.assigned_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Pulling => {
+                            summary.pulling_replicas = summary.pulling_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Starting => {
+                            summary.starting_replicas = summary.starting_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Ready => {
+                            summary.ready_replicas = summary.ready_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Failed => {
+                            summary.failed_replicas = summary.failed_replicas.saturating_add(1);
+                        }
+                        ReplicaState::Stopped => {
+                            summary.stopped_replicas = summary.stopped_replicas.saturating_add(1);
+                        }
+                    }
+                    summary
+                },
+            );
+
+        deployment.status = summary;
+    }
+
+    fn refresh_worker_summaries(&mut self) {
+        let worker_ids = self.workers.keys().cloned().collect::<Vec<_>>();
+        for worker_id in worker_ids {
+            let active_leases = self
+                .leases
+                .values()
+                .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            if let Some(record) = self.workers.get_mut(&worker_id) {
+                let lease_refs = active_leases.iter().collect::<Vec<_>>();
+                let available_slots = record
+                    .worker
+                    .capabilities
+                    .iter()
+                    .filter_map(|capability| {
+                        available_capacity_for_requirement(
+                            &record.worker,
+                            &WorkloadRequirement {
+                                accelerator_runtime:      capability.accelerator_runtime.clone(),
+                                architecture_family:      capability.architecture_family.clone(),
+                                concurrency_requirement:  0,
+                                device:                   capability.device.clone(),
+                                framework:                capability.framework.clone(),
+                                memory_requirement_bytes: 0,
+                                mode:                     capability.mode.clone(),
+                            },
+                            &lease_refs,
+                        )
+                        .map(|(slots, _)| slots)
+                    })
+                    .fold(0, u32::saturating_add);
+
+                record.worker.assigned_replicas =
+                    u32::try_from(active_leases.len()).unwrap_or(u32::MAX);
+                record.worker.available_slots = available_slots;
+            }
+        }
+    }
+
+    pub(crate) fn register_worker(
+        &mut self,
+        request: RegisterWorkerRequest,
+    ) -> RegisterWorkerResponse {
+        let worker_id = request.worker_id.clone();
+        let affected_deployments = if self.workers.contains_key(&worker_id) {
+            self.expire_worker_leases(&worker_id, "worker restarted before replica completed")
+        } else {
+            Vec::new()
+        };
+        let worker = Worker {
+            assigned_replicas: 0,
+            available_slots:   0,
+            capabilities:      request.capabilities,
+            display_name:      request.display_name,
+            id:                worker_id.clone(),
+            state:             WorkerState::Starting,
+        };
+
+        self.workers.insert(worker_id, WorkerRecord {
+            assignment_queue:  VecDeque::new(),
+            last_heartbeat_at: Instant::now(),
+            worker:            worker.clone(),
+        });
+        self.refresh_worker_summaries();
+        for deployment_id in affected_deployments {
+            self.refresh_deployment_status(&deployment_id);
+        }
+
+        RegisterWorkerResponse {
+            worker: self
+                .workers
+                .get(&worker.id)
+                .map(|record| record.worker.clone())
+                .unwrap_or(worker),
+        }
+    }
+
+    fn release_lease(&mut self, lease_id: &str) {
+        if let Some(lease) = self.leases.get_mut(lease_id) {
+            lease.state = LeaseState::Released;
+        }
+    }
+
+    fn select_worker(&self, requirement: &WorkloadRequirement) -> Option<String> {
+        self.workers
+            .iter()
+            .filter(|(_, record)| record.worker.state == WorkerState::Ready)
+            .find_map(|(worker_id, record)| {
+                let leases = self
+                    .leases
+                    .values()
+                    .filter(|lease| {
+                        lease.worker_id == *worker_id && lease.state == LeaseState::Active
+                    })
+                    .collect::<Vec<_>>();
+
+                worker_is_eligible(&record.worker, requirement, &leases).then(|| worker_id.clone())
+            })
     }
 
     pub(crate) fn update_replica_status(
@@ -248,285 +531,9 @@ impl AppState {
 
         Ok(updated_replica)
     }
+}
 
-    pub(crate) fn reconcile(&mut self, lost_timeout: Duration) {
-        self.expire_lost_workers(lost_timeout);
-
-        let deployment_ids = self.deployments.keys().cloned().collect::<Vec<_>>();
-        for deployment_id in deployment_ids {
-            self.ensure_deployment_capacity(&deployment_id);
-            self.refresh_deployment_status(&deployment_id);
-        }
-
-        let pending_replica_ids = self
-            .replicas
-            .values()
-            .filter(|replica| replica.state == ReplicaState::Pending)
-            .map(|replica| replica.id.clone())
-            .collect::<Vec<_>>();
-
-        for replica_id in pending_replica_ids {
-            let Some((worker_id, lease, assignment)) = self.build_assignment(&replica_id) else {
-                continue;
-            };
-
-            self.leases.insert(lease.id.clone(), lease.clone());
-
-            if let Some(replica) = self.replicas.get_mut(&replica_id) {
-                replica.state = ReplicaState::Assigned;
-                replica.worker_id = Some(worker_id.clone());
-                replica.lease_id = Some(lease.id.clone());
-                replica.status_message = Some(format!("assigned to {worker_id}"));
-            }
-
-            if let Some(record) = self.workers.get_mut(&worker_id) {
-                record.assignment_queue.push_back(assignment);
-            }
-        }
-
-        self.refresh_worker_summaries();
-        let deployment_ids = self.deployments.keys().cloned().collect::<Vec<_>>();
-        for deployment_id in deployment_ids {
-            self.refresh_deployment_status(&deployment_id);
-        }
-    }
-
-    fn build_assignment(
-        &mut self,
-        replica_id: &str,
-    ) -> Option<(String, WorkerLease, WorkerAssignment)> {
-        let replica = self.replicas.get(replica_id)?.clone();
-        let deployment = self.deployments.get(&replica.deployment_id)?.clone();
-        let candidate_worker_id = self.select_worker(&deployment.requirement)?;
-        let lease_id = self.next_id("lease");
-        let lease = WorkerLease {
-            id:            lease_id.clone(),
-            worker_id:     candidate_worker_id.clone(),
-            deployment_id: deployment.id.clone(),
-            replica_id:    replica.id.clone(),
-            state:         LeaseState::Active,
-            requirement:   deployment.requirement.clone(),
-        };
-        let assignment = WorkerAssignment {
-            worker_id: candidate_worker_id.clone(),
-            deployment_id: deployment.id,
-            replica_id: replica.id,
-            lease_id,
-            artifact_ref: deployment.artifact_ref,
-            requirement: deployment.requirement,
-        };
-
-        Some((candidate_worker_id, lease, assignment))
-    }
-
-    fn select_worker(&self, requirement: &WorkloadRequirement) -> Option<String> {
-        self.workers
-            .iter()
-            .filter(|(_, record)| record.worker.state == WorkerState::Ready)
-            .find_map(|(worker_id, record)| {
-                let leases = self
-                    .leases
-                    .values()
-                    .filter(|lease| {
-                        lease.worker_id == *worker_id && lease.state == LeaseState::Active
-                    })
-                    .collect::<Vec<_>>();
-
-                worker_is_eligible(&record.worker, requirement, &leases).then(|| worker_id.clone())
-            })
-    }
-
-    fn ensure_deployment_capacity(&mut self, deployment_id: &str) {
-        let Some(deployment) = self.deployments.get(deployment_id).cloned() else {
-            return;
-        };
-
-        let active_replicas = self
-            .replicas
-            .values()
-            .filter(|replica| {
-                replica.deployment_id == deployment_id
-                    && matches!(
-                        replica.state,
-                        ReplicaState::Pending
-                            | ReplicaState::Assigned
-                            | ReplicaState::Pulling
-                            | ReplicaState::Starting
-                            | ReplicaState::Ready
-                    )
-            })
-            .count() as u32;
-
-        if active_replicas >= deployment.replicas_desired {
-            return;
-        }
-
-        for _ in active_replicas..deployment.replicas_desired {
-            let replica_id = self.next_id("replica");
-            self.replicas.insert(replica_id.clone(), ModelReplica {
-                id:             replica_id,
-                deployment_id:  deployment_id.to_string(),
-                worker_id:      None,
-                lease_id:       None,
-                state:          ReplicaState::Pending,
-                status_message: Some("pending scheduling".to_string()),
-            });
-        }
-    }
-
-    fn refresh_worker_summaries(&mut self) {
-        let worker_ids = self.workers.keys().cloned().collect::<Vec<_>>();
-        for worker_id in worker_ids {
-            let active_leases = self
-                .leases
-                .values()
-                .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
-                .cloned()
-                .collect::<Vec<_>>();
-
-            if let Some(record) = self.workers.get_mut(&worker_id) {
-                let lease_refs = active_leases.iter().collect::<Vec<_>>();
-                let available_slots = record
-                    .worker
-                    .capabilities
-                    .iter()
-                    .filter_map(|capability| {
-                        available_capacity_for_requirement(
-                            &record.worker,
-                            &WorkloadRequirement {
-                                framework:                capability.framework.clone(),
-                                mode:                     capability.mode.clone(),
-                                device:                   capability.device.clone(),
-                                accelerator_runtime:      capability.accelerator_runtime.clone(),
-                                architecture_family:      capability.architecture_family.clone(),
-                                memory_requirement_bytes: 0,
-                                concurrency_requirement:  0,
-                            },
-                            &lease_refs,
-                        )
-                        .map(|(slots, _)| slots)
-                    })
-                    .fold(0u32, u32::saturating_add);
-
-                record.worker.assigned_replicas = active_leases.len() as u32;
-                record.worker.available_slots = available_slots;
-            }
-        }
-    }
-
-    fn refresh_deployment_status(&mut self, deployment_id: &str) {
-        let Some(deployment) = self.deployments.get_mut(deployment_id) else {
-            return;
-        };
-
-        let summary = self
-            .replicas
-            .values()
-            .filter(|replica| replica.deployment_id == deployment_id)
-            .fold(
-                DeploymentStatusSummary::default(),
-                |mut summary, replica| {
-                    match replica.state {
-                        ReplicaState::Pending => {
-                            summary.pending_replicas = summary.pending_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Assigned => {
-                            summary.assigned_replicas = summary.assigned_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Pulling => {
-                            summary.pulling_replicas = summary.pulling_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Starting => {
-                            summary.starting_replicas = summary.starting_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Ready => {
-                            summary.ready_replicas = summary.ready_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Failed => {
-                            summary.failed_replicas = summary.failed_replicas.saturating_add(1);
-                        }
-                        ReplicaState::Stopped => {
-                            summary.stopped_replicas = summary.stopped_replicas.saturating_add(1);
-                        }
-                    }
-                    summary
-                },
-            );
-
-        deployment.status = summary;
-    }
-
-    fn expire_lost_workers(&mut self, lost_timeout: Duration) {
-        let lost_worker_ids = self
-            .workers
-            .iter()
-            .filter(|(_, record)| {
-                record.worker.state != WorkerState::Lost
-                    && record.last_heartbeat_at.elapsed() >= lost_timeout
-            })
-            .map(|(worker_id, _)| worker_id.clone())
-            .collect::<Vec<_>>();
-
-        for worker_id in lost_worker_ids {
-            if let Some(record) = self.workers.get_mut(&worker_id) {
-                record.worker.state = WorkerState::Lost;
-            }
-            for deployment_id in
-                self.expire_worker_leases(&worker_id, "worker lost before replica completed")
-            {
-                self.refresh_deployment_status(&deployment_id);
-            }
-        }
-    }
-
-    fn expire_worker_leases(&mut self, worker_id: &str, message: &str) -> Vec<String> {
-        if let Some(record) = self.workers.get_mut(worker_id) {
-            record.assignment_queue.clear();
-        }
-
-        let affected_lease_ids = self
-            .leases
-            .values()
-            .filter(|lease| lease.worker_id == worker_id && lease.state == LeaseState::Active)
-            .map(|lease| lease.id.clone())
-            .collect::<Vec<_>>();
-        let mut deployment_ids = BTreeSet::new();
-
-        for lease_id in affected_lease_ids {
-            if let Some(lease) = self.leases.get_mut(&lease_id) {
-                lease.state = LeaseState::Expired;
-                deployment_ids.insert(lease.deployment_id.clone());
-                if let Some(replica) = self.replicas.get_mut(&lease.replica_id) {
-                    replica.state = ReplicaState::Stopped;
-                    replica.status_message = Some(message.to_string());
-                }
-            }
-        }
-
-        deployment_ids.into_iter().collect()
-    }
-
-    fn release_lease(&mut self, lease_id: &str) {
-        if let Some(lease) = self.leases.get_mut(lease_id) {
-            lease.state = LeaseState::Released;
-        }
-    }
-
-    fn next_id(&mut self, prefix: &str) -> String {
-        self.next_id = self.next_id.saturating_add(1);
-        format!("{prefix}-{}", self.next_id)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn force_last_heartbeat_age(&mut self, worker_id: &str, elapsed: Duration) -> bool {
-        if let Some(record) = self.workers.get_mut(worker_id) {
-            let Some(last_heartbeat_at) = Instant::now().checked_sub(elapsed) else {
-                return false;
-            };
-            record.last_heartbeat_at = last_heartbeat_at;
-            return true;
-        }
-
-        false
-    }
+/// Creates a new shared in-memory application state value.
+pub(crate) fn new_shared_state() -> SharedState {
+    Arc::new(Mutex::new(AppState::new()))
 }

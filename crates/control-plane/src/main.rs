@@ -1,5 +1,7 @@
 //! Binary entrypoint for the DLP control-plane server.
 
+use std::{error::Error, net::IpAddr};
+
 use app_config::load_control_plane_config;
 use clap::Parser;
 use client_sdk as _;
@@ -8,7 +10,6 @@ use log::info;
 use serde as _;
 #[cfg(test)]
 use serde_json as _;
-use std::{error::Error, net::IpAddr, sync::Arc};
 use tokio::net::TcpListener;
 #[cfg(test)]
 use tower as _;
@@ -39,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let address = config.server.socket_addr();
     let listener = TcpListener::bind(address).await?;
     let state = control_plane::new_shared_state();
-    control_plane::spawn_reconcile_loop(Arc::clone(&state));
+    control_plane::spawn_reconcile_loop(state.clone());
 
     info!("control-plane listening on http://{address}");
     axum::serve(listener, control_plane::app(state)).await?;

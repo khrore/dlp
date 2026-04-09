@@ -1,5 +1,11 @@
 //! Axum application and integration tests for the DLP control plane.
 
+pub(crate) mod deployments;
+pub(crate) mod reconcile;
+pub(crate) mod scheduler;
+pub(crate) mod state;
+pub(crate) mod workers;
+
 use app_config as _;
 use axum::{
     Json, Router,
@@ -16,16 +22,25 @@ use tokio as _;
 #[cfg(test)]
 use tower as _;
 
-mod deployments;
-mod reconcile;
-mod scheduler;
-mod state;
-mod workers;
+/// Opaque handle to the control-plane's shared application state.
+#[derive(Clone, Debug)]
+pub struct SharedState(state::SharedState);
 
-pub use reconcile::spawn_reconcile_loop;
-pub use state::{AppState, SharedState, new_shared_state};
+/// Creates a new shared in-memory application state value.
+#[inline]
+#[must_use]
+pub fn new_shared_state() -> SharedState {
+    SharedState(state::new_shared_state())
+}
+
+/// Spawns the background reconcile loop for the shared application state.
+#[inline]
+pub fn spawn_reconcile_loop(state: SharedState) {
+    reconcile::spawn_reconcile_loop(state.0);
+}
 
 /// Builds the Axum router for the control-plane API.
+#[inline]
 pub fn app(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -45,7 +60,7 @@ pub fn app(state: SharedState) -> Router {
             "/replicas/{replica_id}/status",
             post(deployments::update_replica_status),
         )
-        .with_state(state)
+        .with_state(state.0)
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -54,6 +69,8 @@ async fn health() -> Json<HealthResponse> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use axum::{
         body::{Body, to_bytes},
         http::{Request, StatusCode, header},
@@ -61,15 +78,14 @@ mod tests {
     use client_sdk::{
         CreateDeploymentRequest, DeviceClass, Framework, GetDeploymentResponse,
         ListReplicasResponse, ListWorkersResponse, RegisterWorkerRequest, ReplicaState,
-        UpdateReplicaStatusRequest, WorkerHeartbeatRequest, WorkerHeartbeatResponse, WorkerState,
-        WorkloadMode, WorkloadRequirement,
+        UpdateReplicaStatusRequest, WorkerCapability, WorkerHeartbeatRequest,
+        WorkerHeartbeatResponse, WorkerState, WorkloadMode, WorkloadRequirement,
     };
+    use serde::de::DeserializeOwned;
     use tower::util::ServiceExt as _;
 
     use crate::{
-        app,
-        reconcile::reconcile_once,
-        state::{DEFAULT_WORKER_LOST_TIMEOUT, new_shared_state},
+        app, new_shared_state, reconcile::reconcile_once, state::DEFAULT_WORKER_LOST_TIMEOUT,
     };
 
     fn sample_requirement(device: DeviceClass) -> WorkloadRequirement {
@@ -77,8 +93,8 @@ mod tests {
             framework: Framework::Pytorch,
             mode: WorkloadMode::Training,
             device,
-            accelerator_runtime: "cpu".to_string(),
-            architecture_family: "generic".to_string(),
+            accelerator_runtime: "cpu".to_owned(),
+            architecture_family: "generic".to_owned(),
             memory_requirement_bytes: 1024,
             concurrency_requirement: 1,
         }
@@ -86,14 +102,14 @@ mod tests {
 
     fn worker_request(device: DeviceClass, slots: u32) -> RegisterWorkerRequest {
         RegisterWorkerRequest {
-            worker_id:    "worker-1".to_string(),
-            display_name: "trainer-1".to_string(),
-            capabilities: vec![client_sdk::WorkerCapability {
+            worker_id:    "worker-1".to_owned(),
+            display_name: "trainer-1".to_owned(),
+            capabilities: vec![WorkerCapability {
                 framework: Framework::Pytorch,
                 mode: WorkloadMode::Training,
                 device,
-                accelerator_runtime: "cpu".to_string(),
-                architecture_family: "generic".to_string(),
+                accelerator_runtime: "cpu".to_owned(),
+                architecture_family: "generic".to_owned(),
                 available_memory_bytes: 8192,
                 concurrency_slots: slots,
             }],
@@ -112,7 +128,7 @@ mod tests {
         request: Request<Body>,
     ) -> (StatusCode, Option<Response>)
     where
-        Response: serde::de::DeserializeOwned,
+        Response: DeserializeOwned,
     {
         let response = router
             .oneshot(request)
@@ -132,14 +148,12 @@ mod tests {
         RequestBody: serde::Serialize,
     {
         let json = serde_json::to_vec(body).expect("request body should serialize");
-        let request = Request::builder()
+        Request::builder()
             .method("POST")
             .uri(uri)
             .header(header::CONTENT_TYPE, "application/json")
             .body(Body::from(json))
-            .expect("request should be constructible");
-
-        request
+            .expect("request should be constructible")
     }
 
     fn get_request(uri: &str) -> Request<Body> {
@@ -167,13 +181,13 @@ mod tests {
     async fn deployment_with_no_workers_stays_pending() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
         let (status, created) = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
@@ -190,13 +204,13 @@ mod tests {
             .as_ref()
             .map(|response| response.deployment.id.clone())
             .unwrap_or_default();
-        let (status, deployment) = json_response::<GetDeploymentResponse>(
+        let (deployment_status, deployment) = json_response::<GetDeploymentResponse>(
             app(state),
             get_request(&format!("/deployments/{deployment_id}")),
         )
         .await;
 
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(deployment_status, StatusCode::OK);
         assert_eq!(
             deployment
                 .as_ref()
@@ -210,24 +224,24 @@ mod tests {
     async fn ready_worker_receives_assignment_on_next_heartbeat() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
 
         let first = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -251,23 +265,23 @@ mod tests {
     async fn capability_mismatch_prevents_assignment() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cuda, 1)),
         )
         .await;
         let heartbeat = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -294,30 +308,30 @@ mod tests {
     async fn slot_exhaustion_keeps_extra_replica_pending() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 2,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -346,30 +360,30 @@ mod tests {
     async fn replica_failure_requeues_replacement_work() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -386,31 +400,31 @@ mod tests {
             .unwrap_or_default();
 
         let failure = json_response::<client_sdk::ModelReplica>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
                     lease_id:       lease_id.clone(),
                     state:          ReplicaState::Failed,
-                    status_message: Some("provider failed".to_string()),
+                    status_message: Some("provider failed".to_owned()),
                 },
             ),
         )
         .await;
         let stale_retry = json_response::<client_sdk::ModelReplica>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
                     lease_id,
                     state: ReplicaState::Ready,
-                    status_message: Some("late ready".to_string()),
+                    status_message: Some("late ready".to_owned()),
                 },
             ),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -445,30 +459,30 @@ mod tests {
     async fn re_registering_worker_expires_old_lease_and_restores_pending_capacity() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -478,7 +492,7 @@ mod tests {
         assert!(assignment.is_some());
 
         let (status, registration) = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
@@ -513,30 +527,30 @@ mod tests {
     async fn stale_status_update_with_expired_lease_is_rejected() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -552,19 +566,19 @@ mod tests {
             .map(|value| value.lease_id.clone())
             .unwrap_or_default();
 
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
         let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
                     lease_id,
                     state: ReplicaState::Ready,
-                    status_message: Some("late ready".to_string()),
+                    status_message: Some("late ready".to_owned()),
                 },
             ),
         )
@@ -588,30 +602,30 @@ mod tests {
     async fn wrong_lease_id_is_rejected_for_replica_update() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
         let (_, assigned_heartbeat) = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -622,13 +636,13 @@ mod tests {
             .unwrap_or_default();
 
         let (status, stale_update) = json_response::<client_sdk::ModelReplica>(
-            app(std::sync::Arc::clone(&state)),
+            app(state.clone()),
             post_json(
                 &format!("/replicas/{replica_id}/status"),
                 &UpdateReplicaStatusRequest {
-                    lease_id:       "lease-does-not-match".to_string(),
+                    lease_id:       "lease-does-not-match".to_owned(),
                     state:          ReplicaState::Ready,
-                    status_message: Some("late ready".to_string()),
+                    status_message: Some("late ready".to_owned()),
                 },
             ),
         )
@@ -652,30 +666,30 @@ mod tests {
     async fn lost_worker_expires_leases_and_restores_pending_replica() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
-            name:             "trainer".to_string(),
-            artifact_ref:     "artifact://model".to_string(),
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let _ = json_response::<client_sdk::CreateDeploymentResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::CreateDeploymentResponse>(
+            app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        let _ = json_response::<client_sdk::RegisterWorkerResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<client_sdk::RegisterWorkerResponse>(
+            app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
         )
         .await;
-        let _ = json_response::<WorkerHeartbeatResponse>(
-            app(std::sync::Arc::clone(&state)),
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
             post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
                 state: WorkerState::Ready,
             }),
@@ -683,20 +697,15 @@ mod tests {
         .await;
 
         {
-            let mut guard = state.lock().await;
-            let updated = guard.force_last_heartbeat_age(
+            let updated = state.0.lock().await.force_last_heartbeat_age(
                 "worker-1",
-                DEFAULT_WORKER_LOST_TIMEOUT.saturating_add(std::time::Duration::from_secs(1)),
+                DEFAULT_WORKER_LOST_TIMEOUT.saturating_add(Duration::from_secs(1)),
             );
             assert!(updated);
         }
-        reconcile_once(&state).await;
+        reconcile_once(&state.0).await;
         let (worker_status, workers) =
-            json_response::<ListWorkersResponse>(
-                app(std::sync::Arc::clone(&state)),
-                get_request("/workers"),
-            )
-            .await;
+            json_response::<ListWorkersResponse>(app(state.clone()), get_request("/workers")).await;
         let (replica_status, deployment) = json_response::<GetDeploymentResponse>(
             app(state),
             get_request("/deployments/deployment-1"),

@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Handlers are visible through the crate-private module boundary."
+)]
+
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -15,7 +20,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-pub struct ReplicaListQuery {
+pub(crate) struct ReplicaListQuery {
     deployment_id: Option<String>,
 }
 

@@ -28,7 +28,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             config_path.display()
         ))?;
     }
-    emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_UI_API_SCHEME\n"))?;
+    emit_cargo_directive(format_args!(
+        "cargo:rerun-if-env-changed=DLP_UI_API_SCHEME\n"
+    ))?;
     emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_UI_API_HOST\n"))?;
     emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_UI_API_PORT\n"))?;
     emit_cargo_directive(format_args!("cargo:rerun-if-env-changed=DLP_CONFIG_PATH\n"))?;

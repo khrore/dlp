@@ -103,7 +103,7 @@ impl RuntimeProvider for SimulatedProvider {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LifecycleStep {
     message: String,
-    state: ReplicaState,
+    state:   ReplicaState,
 }
 
 impl LifecycleStep {
@@ -233,7 +233,7 @@ fn log_assignment_error(error: anyhow::Error) {
 mod tests {
     use client_sdk::ReplicaState;
 
-    use super::{FailureMode, LifecycleStep, SimulatedProvider};
+    use super::{FailureMode, LifecycleStep, RuntimeProvider as _, SimulatedProvider};
 
     #[test]
     fn provider_plans_ready_lifecycle_by_default() {

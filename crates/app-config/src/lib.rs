@@ -52,10 +52,10 @@ impl HostPortConfig {
 pub struct EndpointConfig {
     /// Hostname or IP address.
     #[serde(default = "default_localhost")]
-    pub host: String,
+    pub host:   String,
     /// TCP port.
     #[serde(default = "default_port")]
-    pub port: u16,
+    pub port:   u16,
     /// URL scheme.
     #[serde(default = "default_http_scheme")]
     pub scheme: String,
@@ -65,8 +65,8 @@ impl Default for EndpointConfig {
     #[inline]
     fn default() -> Self {
         Self {
-            host: default_localhost(),
-            port: default_port(),
+            host:   default_localhost(),
+            port:   default_port(),
             scheme: default_http_scheme(),
         }
     }
@@ -115,17 +115,18 @@ struct RootConfig {
     #[serde(default)]
     control_plane: ControlPlaneConfig,
     #[serde(default)]
-    dlp: DlpConfig,
+    dlp:           DlpConfig,
     #[serde(default)]
-    ui: UiConfig,
+    ui:            UiConfig,
 }
 
-/// Loads the control-plane server configuration from the current directory context.
+/// Loads the control-plane server configuration from the current directory
+/// context.
 ///
 /// # Errors
 ///
-/// Returns an error if the current working directory cannot be read or if configuration
-/// extraction fails.
+/// Returns an error if the current working directory cannot be read or if
+/// configuration extraction fails.
 #[inline]
 pub fn load_control_plane_config() -> Result<ControlPlaneConfig, ConfigError> {
     extract_root_config().map(|config| config.control_plane)
@@ -135,8 +136,8 @@ pub fn load_control_plane_config() -> Result<ControlPlaneConfig, ConfigError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the current working directory cannot be read or if configuration
-/// extraction fails.
+/// Returns an error if the current working directory cannot be read or if
+/// configuration extraction fails.
 #[inline]
 pub fn load_dlp_config() -> Result<DlpConfig, ConfigError> {
     extract_root_config().map(|config| config.dlp)
@@ -146,8 +147,8 @@ pub fn load_dlp_config() -> Result<DlpConfig, ConfigError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the current working directory cannot be read or if configuration
-/// extraction fails.
+/// Returns an error if the current working directory cannot be read or if
+/// configuration extraction fails.
 #[inline]
 pub fn load_ui_config() -> Result<UiConfig, ConfigError> {
     extract_root_config().map(|config| config.ui)
@@ -179,7 +180,10 @@ fn base_figment(start_dir: &Path) -> Figment {
     };
 
     with_file
-        .merge(env_provider("DLP_CONTROL_PLANE_SERVER_", "control_plane.server"))
+        .merge(env_provider(
+            "DLP_CONTROL_PLANE_SERVER_",
+            "control_plane.server",
+        ))
         .merge(env_provider("DLP_DLP_API_", "dlp.api"))
         .merge(env_provider("DLP_UI_API_", "ui.api"))
 }
@@ -257,8 +261,8 @@ mod tests {
     #[test]
     fn endpoint_base_url_uses_structured_fields() {
         let config = EndpointConfig {
-            host: "dlp.example.com".to_owned(),
-            port: 443,
+            host:   "dlp.example.com".to_owned(),
+            port:   443,
             scheme: "https".to_owned(),
         };
 
@@ -268,8 +272,8 @@ mod tests {
     #[test]
     fn endpoint_base_url_preserves_ipv4_formatting() {
         let config = EndpointConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 3000,
+            host:   "127.0.0.1".to_owned(),
+            port:   3000,
             scheme: "http".to_owned(),
         };
 
@@ -279,8 +283,8 @@ mod tests {
     #[test]
     fn endpoint_base_url_brackets_ipv6_hosts() {
         let config = EndpointConfig {
-            host: "::1".to_owned(),
-            port: 3000,
+            host:   "::1".to_owned(),
+            port:   3000,
             scheme: "http".to_owned(),
         };
 
@@ -307,17 +311,18 @@ mod tests {
                     port: 4000,
                 },
             },
-            dlp: DlpConfig {
+            dlp:           DlpConfig {
                 api: EndpointConfig {
-                    host: "api.example.com".to_owned(),
-                    port: 8443,
+                    host:   "api.example.com".to_owned(),
+                    port:   8443,
                     scheme: "https".to_owned(),
                 },
             },
-            ui: UiConfig::default(),
+            ui:            UiConfig::default(),
         };
 
-        let merged = Figment::from(Serialized::defaults(defaults)).merge(Serialized::defaults(overrides));
+        let merged =
+            Figment::from(Serialized::defaults(defaults)).merge(Serialized::defaults(overrides));
         let config = extract_from_figment(&merged).expect("nested config extracts");
 
         assert_eq!(config.control_plane.server.port, 4000);
