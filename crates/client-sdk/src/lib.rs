@@ -3,8 +3,7 @@
 
 use std::{
     error::Error,
-    fmt::{Display, Formatter, Result as FmtResult},
-    str::FromStr,
+    fmt::{Display as FmtDisplay, Formatter, Result as FmtResult},
 };
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -28,80 +27,31 @@ impl HealthResponse {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum Framework {
     Max,
     Pytorch,
 }
 
-impl Framework {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Pytorch => "pytorch",
-            Self::Max => "max",
-        }
-    }
-}
-
-impl Display for Framework {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for Framework {
-    type Err = ParseEnumError;
-
-    #[inline]
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "pytorch" => Ok(Self::Pytorch),
-            "max" => Ok(Self::Max),
-            other => Err(ParseEnumError::new("framework", other)),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum WorkloadMode {
     Inference,
     Training,
 }
 
-impl WorkloadMode {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Training => "training",
-            Self::Inference => "inference",
-        }
-    }
-}
-
-impl Display for WorkloadMode {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for WorkloadMode {
-    type Err = ParseEnumError;
-
-    #[inline]
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "training" => Ok(Self::Training),
-            "inference" => Ok(Self::Inference),
-            other => Err(ParseEnumError::new("mode", other)),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum DeviceClass {
     AppleGpu,
     Cpu,
@@ -109,41 +59,11 @@ pub enum DeviceClass {
     Rocm,
 }
 
-impl DeviceClass {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Cpu => "cpu",
-            Self::Cuda => "cuda",
-            Self::Rocm => "rocm",
-            Self::AppleGpu => "apple-gpu",
-        }
-    }
-}
-
-impl Display for DeviceClass {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for DeviceClass {
-    type Err = ParseEnumError;
-
-    #[inline]
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "cpu" => Ok(Self::Cpu),
-            "cuda" => Ok(Self::Cuda),
-            "rocm" => Ok(Self::Rocm),
-            "apple-gpu" => Ok(Self::AppleGpu),
-            other => Err(ParseEnumError::new("device", other)),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum WorkerState {
     Draining,
     Lost,
@@ -152,22 +72,11 @@ pub enum WorkerState {
     Unhealthy,
 }
 
-impl Display for WorkerState {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let value = match self {
-            Self::Starting => "starting",
-            Self::Ready => "ready",
-            Self::Draining => "draining",
-            Self::Unhealthy => "unhealthy",
-            Self::Lost => "lost",
-        };
-        f.write_str(value)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum ReplicaState {
     Assigned,
     Failed,
@@ -178,40 +87,15 @@ pub enum ReplicaState {
     Stopped,
 }
 
-impl Display for ReplicaState {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let value = match self {
-            Self::Pending => "pending",
-            Self::Assigned => "assigned",
-            Self::Pulling => "pulling",
-            Self::Starting => "starting",
-            Self::Ready => "ready",
-            Self::Failed => "failed",
-            Self::Stopped => "stopped",
-        };
-        f.write_str(value)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, strum::Display, strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum LeaseState {
     Active,
     Expired,
     Released,
-}
-
-impl Display for LeaseState {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let value = match self {
-            Self::Active => "active",
-            Self::Released => "released",
-            Self::Expired => "expired",
-        };
-        f.write_str(value)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -381,34 +265,6 @@ pub struct UpdateReplicaStatusRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseEnumError {
-    kind:  &'static str,
-    value: String,
-}
-
-impl ParseEnumError {
-    fn new(kind: &'static str, value: impl Into<String>) -> Self {
-        Self {
-            kind,
-            value: value.into(),
-        }
-    }
-}
-
-impl Display for ParseEnumError {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "invalid {}: {}", self.kind, self.value)
-    }
-}
-
-#[expect(
-    clippy::missing_trait_methods,
-    reason = "The Error trait has default methods that are intentionally inherited."
-)]
-impl Error for ParseEnumError {}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClientError {
     HttpStatus {
         code:            u16,
@@ -418,7 +274,7 @@ pub enum ClientError {
     Transport(String),
 }
 
-impl Display for ClientError {
+impl FmtDisplay for ClientError {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {

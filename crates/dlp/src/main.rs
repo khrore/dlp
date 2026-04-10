@@ -7,8 +7,6 @@ use client_sdk::{
     CreateDeploymentRequest, DeviceClass, DlpClient, Framework, ModelDeployment, ModelReplica,
     WorkloadMode, WorkloadRequirement,
 };
-#[cfg(test)]
-use control_plane as _;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 #[derive(Debug, Parser)]
@@ -178,7 +176,7 @@ async fn execute_command(command: Command, client: &DlpClient) -> Result<String>
                         "{} ({}) state={} assigned={} available_slots={} capabilities=[{}]",
                         worker.display_name,
                         worker.id,
-                        worker.state.to_string().to_ascii_lowercase(),
+                        worker.state,
                         worker.assigned_replicas,
                         worker.available_slots,
                         capabilities
@@ -262,12 +260,7 @@ fn format_replica(replica: ModelReplica) -> String {
 
     format!(
         "{} deployment={} state={} worker={} lease={} message={}",
-        replica.id,
-        replica.deployment_id,
-        replica.state.to_string().to_ascii_lowercase(),
-        worker,
-        lease,
-        message
+        replica.id, replica.deployment_id, replica.state, worker, lease, message
     )
 }
 
@@ -326,6 +319,7 @@ mod tests {
     use client_sdk::{
         DeploymentStatusSummary, Framework, ReplicaState, WorkloadMode, WorkloadRequirement,
     };
+    use control_plane as _;
 
     use super::{
         Args, Command, DeviceClass, InteractiveCommand, ModelDeployment, ModelReplica,

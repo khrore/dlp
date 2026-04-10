@@ -16,8 +16,6 @@ use client_sdk::{
     UpdateReplicaStatusRequest, WorkerAssignment, WorkerCapability, WorkerHeartbeatRequest,
     WorkerState, WorkloadMode,
 };
-#[cfg(test)]
-use control_plane as _;
 use tokio::{
     sync::Mutex,
     time::{MissedTickBehavior, interval, sleep},
@@ -232,6 +230,7 @@ fn log_assignment_error(error: anyhow::Error) {
 #[cfg(test)]
 mod tests {
     use client_sdk::ReplicaState;
+    use control_plane as _;
 
     use super::{FailureMode, LifecycleStep, RuntimeProvider as _, SimulatedProvider};
 
