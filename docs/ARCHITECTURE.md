@@ -4,7 +4,7 @@ Deep Learning Platform (`dlp`) is a framework-agnostic, client-server platform f
 
 The core platform does not depend on a single ML framework. Instead, it provides a Rust-based control plane and a set of pluggable execution workers for frameworks such as PyTorch, MLX, and MAX/Mojo.
 
-This document describes the durable, higher-level architecture of the platform. Concrete implementation decisions for the first delivery phase live in `docs/IMPLEMENTATION_ARCHITECTURE.md`.
+This document describes the durable, higher-level architecture of the platform. Concrete implementation decisions for the first delivery phase live in `docs/IMPLEMENTATION_ARCHITECTURE.md`, and the concrete V1 storage design lives in `docs/STORAGE_ARCHITECTURE.md`.
 
 ## Goals
 
@@ -198,6 +198,8 @@ Use a relational database for structured metadata:
 - access control records
 
 This split keeps binary storage scalable while preserving queryable operational state.
+
+The concrete V1 storage design, including metadata authority, transaction boundaries, and repository integration, is defined in `docs/STORAGE_ARCHITECTURE.md`.
 
 ## Client Applications
 

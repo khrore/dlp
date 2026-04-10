@@ -8,6 +8,8 @@ The immediate target is to launch and manage multiple concurrent AI model instan
 
 Version 1 should stay close to the current workspace layout and avoid premature microservice splits.
 
+The concrete V1 storage design for metadata and artifacts is defined in `docs/STORAGE_ARCHITECTURE.md`.
+
 Runtime-relevant workspace units:
 
 - `control-plane` from `crates/control-plane`: public API, desired state, scheduler module, and worker-gateway module
