@@ -27,6 +27,10 @@ Prefer flake entrypoints so agents use the pinned toolchain and dependencies:
 
 Configuration loads from `config.toml` (searched upward) or `DLP_CONFIG_PATH`, with `DLP_CONTROL_PLANE_SERVER_*`, `DLP_DLP_API_*`, and `DLP_UI_API_*` overrides.
 
+## Repository Rules
+
+Repository-specific agent rules may live under `.rules/`. When a task touches persistence code, consult [.rules/seaorm-sql-boundaries.md](/Users/khrore/projects/dlp/.rules/seaorm-sql-boundaries.md) and follow its SeaORM versus raw SQL boundary rules.
+
 ## Agent Execution with Nix
 
 When an agent needs to run validation, builds, or repository services, use `nix run .#<app>` from the repo root. Valid app attrs are `fmt`, `clippy`, `test`, `build`, `check`, `dlp`, `control-plane`, and `ui-dev`. Do not use bare host `cargo`, `rustfmt`, or `clippy` for repository workflows unless the task explicitly requires debugging outside the flake toolchain.
