@@ -4,7 +4,8 @@ use std::{error::Error, net::IpAddr};
 
 use app_config::load_control_plane_config;
 use clap::Parser;
-use client_sdk as _;
+use dlp_api as _;
+use dlp_domain as _;
 use env_logger as _;
 use log::info;
 use serde as _;

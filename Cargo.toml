@@ -1,8 +1,10 @@
 [workspace]
 members = [
     "crates/app-config",
-    "crates/client-sdk",
     "crates/control-plane",
+    "crates/dlp-api",
+    "crates/dlp-client",
+    "crates/dlp-domain",
     "crates/dlp",
     "crates/pytorch-worker",
     "crates/ui",

@@ -1,0 +1,16 @@
+[package]
+name = "dlp-domain"
+version.workspace = true
+edition.workspace = true
+description = "Core domain model and invariants for DLP."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+strum.workspace = true

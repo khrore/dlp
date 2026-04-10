@@ -17,8 +17,8 @@ name = "ui_app"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-client-sdk = { path = "../client-sdk" }
 console_error_panic_hook.workspace = true
+dlp-client = { path = "../dlp-client" }
 leptos.workspace = true
 
 [build-dependencies]

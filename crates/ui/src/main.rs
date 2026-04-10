@@ -4,8 +4,8 @@
     reason = "Qualified standard-library paths are acceptable in this small entrypoint."
 )]
 
-use client_sdk as _;
 use console_error_panic_hook as _;
+use dlp_client as _;
 use leptos as _;
 #[cfg(target_arch = "wasm32")]
 use leptos::prelude::*;

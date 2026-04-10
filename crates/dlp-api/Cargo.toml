@@ -1,0 +1,20 @@
+[package]
+name = "dlp-api"
+version.workspace = true
+edition.workspace = true
+description = "Wire DTOs for the DLP HTTP and worker APIs."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+strum.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

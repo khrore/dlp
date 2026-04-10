@@ -11,11 +11,11 @@ use std::{
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use client_sdk::{
-    DeviceClass, DlpClient, Framework, RegisterWorkerRequest, ReplicaState,
-    UpdateReplicaStatusRequest, WorkerAssignment, WorkerCapability, WorkerHeartbeatRequest,
-    WorkerState, WorkloadMode,
+use dlp_api::{
+    DeviceClass, Framework, RegisterWorkerRequest, ReplicaState, UpdateReplicaStatusRequest,
+    WorkerAssignmentDto, WorkerCapabilityDto, WorkerHeartbeatRequest, WorkerState, WorkloadMode,
 };
+use dlp_client::{DlpClient, ReplicasClientExt as _, WorkersClientExt as _};
 use tokio::{
     sync::Mutex,
     time::{MissedTickBehavior, interval, sleep},
@@ -127,7 +127,7 @@ async fn main() -> Result<()> {
         .register_worker(&RegisterWorkerRequest {
             worker_id:    args.worker_id.clone(),
             display_name: args.display_name,
-            capabilities: vec![WorkerCapability {
+            capabilities: vec![WorkerCapabilityDto {
                 framework:              Framework::Pytorch,
                 mode:                   args.mode,
                 device:                 args.device,
@@ -181,7 +181,7 @@ async fn main() -> Result<()> {
 async fn process_assignment(
     client: DlpClient,
     provider: SimulatedProvider,
-    assignment: WorkerAssignment,
+    assignment: WorkerAssignmentDto,
     active_replicas: Arc<Mutex<HashMap<String, ReplicaState>>>,
     stop_heartbeats: Arc<AtomicBool>,
 ) -> Result<()> {
@@ -229,8 +229,8 @@ fn log_assignment_error(error: anyhow::Error) {
 
 #[cfg(test)]
 mod tests {
-    use client_sdk::ReplicaState;
     use control_plane as _;
+    use dlp_api::ReplicaState;
 
     use super::{FailureMode, LifecycleStep, RuntimeProvider as _, SimulatedProvider};
 

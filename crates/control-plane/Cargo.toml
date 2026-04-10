@@ -16,7 +16,8 @@ workspace = true
 app-config = { path = "../app-config" }
 axum.workspace = true
 clap.workspace = true
-client-sdk = { path = "../client-sdk" }
+dlp-api = { path = "../dlp-api" }
+dlp-domain = { path = "../dlp-domain" }
 env_logger.workspace = true
 log.workspace = true
 serde.workspace = true

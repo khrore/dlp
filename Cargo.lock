@@ -337,17 +337,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "client-sdk"
-version = "0.1.0"
-dependencies = [
- "gloo-net",
- "reqwest",
- "serde",
- "serde_json",
- "strum",
-]
-
-[[package]]
 name = "codee"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -441,7 +430,8 @@ dependencies = [
  "app-config",
  "axum",
  "clap",
- "client-sdk",
+ "dlp-api",
+ "dlp-domain",
  "env_logger",
  "log",
  "serde",
@@ -541,9 +531,36 @@ dependencies = [
  "anyhow",
  "app-config",
  "clap",
- "client-sdk",
  "control-plane",
+ "dlp-api",
+ "dlp-client",
  "tokio",
+]
+
+[[package]]
+name = "dlp-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum",
+]
+
+[[package]]
+name = "dlp-client"
+version = "0.1.0"
+dependencies = [
+ "dlp-api",
+ "gloo-net",
+ "reqwest",
+ "serde",
+]
+
+[[package]]
+name = "dlp-domain"
+version = "0.1.0"
+dependencies = [
+ "strum",
 ]
 
 [[package]]
@@ -1664,8 +1681,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "client-sdk",
  "control-plane",
+ "dlp-api",
+ "dlp-client",
  "tokio",
 ]
 
@@ -2659,8 +2677,8 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "app-config",
- "client-sdk",
  "console_error_panic_hook",
+ "dlp-client",
  "leptos",
 ]
 

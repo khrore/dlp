@@ -15,7 +15,8 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
-client-sdk = { path = "../client-sdk" }
+dlp-api = { path = "../dlp-api" }
+dlp-client = { path = "../dlp-client" }
 tokio.workspace = true
 
 [dev-dependencies]

@@ -13,8 +13,8 @@
     reason = "The Leptos component macro expands the public component function."
 )]
 
-use client_sdk::DlpClient;
 use console_error_panic_hook as _;
+use dlp_client::{DlpClient, WorkersClientExt};
 use leptos::{prelude::*, task::spawn_local};
 
 const DEFAULT_STATUS: &str = "Click the button to check server health.";
