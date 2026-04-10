@@ -2,14 +2,18 @@
 
 use std::{error::Error, net::IpAddr};
 
+use anyhow as _;
 use app_config::load_control_plane_config;
+use async_trait as _;
+use chrono as _;
 use clap::Parser;
 use dlp_api as _;
 use dlp_domain as _;
 use env_logger as _;
 use log::info;
+use sea_orm as _;
+use sea_orm_migration as _;
 use serde as _;
-#[cfg(test)]
 use serde_json as _;
 use tokio::net::TcpListener;
 #[cfg(test)]
@@ -40,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let address = config.server.socket_addr();
     let listener = TcpListener::bind(address).await?;
-    let state = control_plane::new_shared_state();
+    let state = control_plane::new_shared_state_from_config(&config).await?;
     control_plane::spawn_reconcile_loop(state.clone());
 
     info!("control-plane listening on http://{address}");

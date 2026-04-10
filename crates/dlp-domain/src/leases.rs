@@ -81,4 +81,23 @@ impl Lease {
     pub fn release(&mut self) {
         self.state = LeaseState::Released;
     }
+
+    #[must_use]
+    pub fn rehydrate(
+        id: LeaseId,
+        worker_id: WorkerId,
+        deployment_id: DeploymentId,
+        replica_id: ReplicaId,
+        requirement: WorkloadRequirement,
+        state: LeaseState,
+    ) -> Self {
+        Self {
+            id,
+            worker_id,
+            deployment_id,
+            replica_id,
+            requirement,
+            state,
+        }
+    }
 }

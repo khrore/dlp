@@ -6,16 +6,44 @@ pub(crate) mod http;
 pub(crate) mod mappers;
 pub(crate) mod repositories;
 
+use std::sync::Arc;
+
+use anyhow::{Result, anyhow};
 use app_config as _;
+use app_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
 pub use application::SharedState;
 use axum::Router;
 use clap as _;
 use env_logger as _;
 use log as _;
+use repositories::{
+    StorageBackend as RuntimeStorageBackend, memory::MemoryStorage, migration::Migrator,
+    postgres::PostgresStorage,
+};
+use sea_orm::{ConnectOptions, Database};
+use sea_orm_migration::MigratorTrait;
 
 #[must_use]
 pub fn new_shared_state() -> SharedState {
-    SharedState::new()
+    SharedState::new(Arc::new(MemoryStorage::new()))
+}
+
+pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result<SharedState> {
+    let storage: Arc<dyn RuntimeStorageBackend> = match config.storage.backend {
+        ConfigStorageBackend::Memory => Arc::new(MemoryStorage::new()),
+        ConfigStorageBackend::Postgres => {
+            let database_url = config.storage.database_url.as_deref().ok_or_else(|| {
+                anyhow!("control_plane.storage.database_url is required for postgres backend")
+            })?;
+            let mut options = ConnectOptions::new(database_url.to_owned());
+            options.max_connections(config.storage.pool.max_connections);
+            options.min_connections(config.storage.pool.min_connections);
+            let connection = Database::connect(options).await?;
+            Migrator::up(&connection, None).await?;
+            Arc::new(PostgresStorage::new(connection))
+        }
+    };
+    Ok(SharedState::new(storage))
 }
 
 pub fn spawn_reconcile_loop(state: SharedState) {
@@ -26,7 +54,7 @@ pub fn spawn_reconcile_loop(state: SharedState) {
 
         loop {
             ticker.tick().await;
-            application::ControlPlaneService::new(state.clone())
+            let _ = application::ControlPlaneService::new(state.clone())
                 .reconcile_once()
                 .await;
         }
@@ -388,6 +416,7 @@ mod tests {
                     DEFAULT_WORKER_LOST_TIMEOUT + Duration::from_secs(1),
                 )
                 .await
+                .expect("force heartbeat age should succeed")
         );
         service.reconcile_once().await;
 

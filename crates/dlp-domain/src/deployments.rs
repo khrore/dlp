@@ -84,6 +84,28 @@ impl DeploymentStatusSummary {
                 summary
             })
     }
+
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub const fn from_counts(
+        pending_replicas: u32,
+        assigned_replicas: u32,
+        pulling_replicas: u32,
+        starting_replicas: u32,
+        ready_replicas: u32,
+        failed_replicas: u32,
+        stopped_replicas: u32,
+    ) -> Self {
+        Self {
+            pending_replicas,
+            assigned_replicas,
+            pulling_replicas,
+            starting_replicas,
+            ready_replicas,
+            failed_replicas,
+            stopped_replicas,
+        }
+    }
 }
 
 impl Default for DeploymentStatusSummary {
@@ -153,6 +175,25 @@ impl Deployment {
 
     pub fn refresh_status<'a>(&mut self, replicas: impl IntoIterator<Item = &'a Replica>) {
         self.status = DeploymentStatusSummary::from_replicas(replicas);
+    }
+
+    #[must_use]
+    pub fn rehydrate(
+        id: DeploymentId,
+        name: String,
+        artifact_ref: ArtifactRef,
+        replicas_desired: u32,
+        requirement: WorkloadRequirement,
+        status: DeploymentStatusSummary,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            artifact_ref,
+            replicas_desired,
+            requirement,
+            status,
+        }
     }
 }
 

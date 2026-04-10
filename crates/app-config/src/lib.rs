@@ -91,7 +91,51 @@ impl EndpointConfig {
 #[serde(default)]
 pub struct ControlPlaneConfig {
     /// Bind address for the HTTP server.
-    pub server: HostPortConfig,
+    pub server:  HostPortConfig,
+    /// Durable metadata storage configuration.
+    pub storage: ControlPlaneStorageConfig,
+}
+
+/// Supported control-plane storage backends.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageBackend {
+    /// In-memory storage, primarily for tests and local-only runs.
+    Memory,
+    /// PostgreSQL-backed metadata storage.
+    #[default]
+    Postgres,
+}
+
+/// PostgreSQL connection pool settings for the control plane.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct PostgresPoolConfig {
+    /// Maximum open connections.
+    pub max_connections: u32,
+    /// Minimum idle connections to keep ready.
+    pub min_connections: u32,
+}
+
+impl Default for PostgresPoolConfig {
+    fn default() -> Self {
+        Self {
+            max_connections: 20,
+            min_connections: 1,
+        }
+    }
+}
+
+/// Storage settings for the control plane.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
+pub struct ControlPlaneStorageConfig {
+    /// Selected metadata backend.
+    pub backend:      StorageBackend,
+    /// DSN-first PostgreSQL connection string.
+    pub database_url: Option<String>,
+    /// Connection pool settings.
+    pub pool:         PostgresPoolConfig,
 }
 
 /// CLI client configuration.
@@ -182,6 +226,10 @@ fn base_figment(start_dir: &Path) -> Figment {
             "DLP_CONTROL_PLANE_SERVER_",
             "control_plane.server",
         ))
+        .merge(env_provider(
+            "DLP_CONTROL_PLANE_STORAGE_",
+            "control_plane.storage",
+        ))
         .merge(env_provider("DLP_DLP_API_", "dlp.api"))
         .merge(env_provider("DLP_UI_API_", "ui.api"))
 }
@@ -252,8 +300,9 @@ mod tests {
     use figment::{Figment, providers::Serialized};
 
     use super::{
-        ControlPlaneConfig, DlpConfig, EndpointConfig, HostPortConfig, RootConfig, UiConfig,
-        extract_from_figment, find_config_path_from_dir, find_config_path_with_override,
+        ControlPlaneConfig, ControlPlaneStorageConfig, DlpConfig, EndpointConfig, HostPortConfig,
+        PostgresPoolConfig, RootConfig, StorageBackend, UiConfig, extract_from_figment,
+        find_config_path_from_dir, find_config_path_with_override,
     };
 
     #[test]
@@ -304,9 +353,17 @@ mod tests {
         let defaults = RootConfig::default();
         let overrides = RootConfig {
             control_plane: ControlPlaneConfig {
-                server: HostPortConfig {
+                server:  HostPortConfig {
                     host: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                     port: 4000,
+                },
+                storage: ControlPlaneStorageConfig {
+                    backend:      StorageBackend::Memory,
+                    database_url: Some("postgres://localhost/dlp".to_owned()),
+                    pool:         PostgresPoolConfig {
+                        max_connections: 8,
+                        min_connections: 2,
+                    },
                 },
             },
             dlp:           DlpConfig {
@@ -324,6 +381,11 @@ mod tests {
         let config = extract_from_figment(&merged).expect("nested config extracts");
 
         assert_eq!(config.control_plane.server.port, 4000);
+        assert_eq!(config.control_plane.storage.backend, StorageBackend::Memory);
+        assert_eq!(
+            config.control_plane.storage.database_url.as_deref(),
+            Some("postgres://localhost/dlp")
+        );
         assert_eq!(config.dlp.api.base_url(), "https://api.example.com:8443");
         assert_eq!(config.ui.api.base_url(), "http://127.0.0.1:3000");
     }

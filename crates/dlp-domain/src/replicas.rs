@@ -123,4 +123,23 @@ impl Replica {
         self.state = ReplicaState::Stopped;
         self.status_message = Some(message.into());
     }
+
+    #[must_use]
+    pub fn rehydrate(
+        id: ReplicaId,
+        deployment_id: DeploymentId,
+        lease_id: Option<LeaseId>,
+        state: ReplicaState,
+        status_message: Option<String>,
+        worker_id: Option<WorkerId>,
+    ) -> Self {
+        Self {
+            id,
+            deployment_id,
+            lease_id,
+            state,
+            status_message,
+            worker_id,
+        }
+    }
 }

@@ -28,8 +28,8 @@ pub(crate) async fn create_deployment(
     let deployment = service
         .create_deployment(request)
         .await
-        .map_err(invalid_request)?;
-    service.reconcile_once().await;
+        .map_err(map_error)?;
+    service.reconcile_once().await.map_err(internal_error)?;
     Ok(Json(CreateDeploymentResponse {
         deployment: mappers::deployment_to_dto(&deployment),
     }))
@@ -44,6 +44,7 @@ pub(crate) async fn get_deployment(
     let (deployment, replicas) = service
         .get_deployment(&deployment_id)
         .await
+        .map_err(internal_error)?
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
@@ -67,7 +68,10 @@ pub(crate) async fn list_replicas(
         .transpose()
         .map_err(invalid_request)?;
     let service = ControlPlaneService::new(state);
-    let replicas = service.list_replicas(deployment_id.as_ref()).await;
+    let replicas = service
+        .list_replicas(deployment_id.as_ref())
+        .await
+        .map_err(internal_error)?;
 
     Ok(Json(ListReplicasResponse {
         replicas: replicas.iter().map(mappers::replica_to_dto).collect(),
@@ -91,10 +95,22 @@ pub(crate) async fn update_replica_status(
             ),
             UpdateReplicaStatusError::LeaseConflict(message) => (StatusCode::CONFLICT, message),
         })?;
-    service.reconcile_once().await;
+    service.reconcile_once().await.map_err(internal_error)?;
     Ok(Json(mappers::replica_to_dto(&replica)))
 }
 
 fn invalid_request(error: impl ToString) -> (StatusCode, String) {
     (StatusCode::BAD_REQUEST, error.to_string())
+}
+
+fn internal_error(error: impl ToString) -> (StatusCode, String) {
+    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+}
+
+fn map_error(error: anyhow::Error) -> (StatusCode, String) {
+    if let Some(domain_error) = error.downcast_ref::<dlp_domain::DomainError>() {
+        return invalid_request(domain_error);
+    }
+
+    internal_error(error)
 }
