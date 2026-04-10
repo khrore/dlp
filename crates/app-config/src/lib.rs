@@ -88,35 +88,33 @@ impl EndpointConfig {
 
 /// Control-plane specific configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct ControlPlaneConfig {
     /// Bind address for the HTTP server.
-    #[serde(default)]
     pub server: HostPortConfig,
 }
 
 /// CLI client configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct DlpConfig {
     /// API endpoint for the control plane.
-    #[serde(default)]
     pub api: EndpointConfig,
 }
 
 /// UI configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct UiConfig {
     /// API endpoint for the control plane.
-    #[serde(default)]
     pub api: EndpointConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(default)]
 struct RootConfig {
-    #[serde(default)]
     control_plane: ControlPlaneConfig,
-    #[serde(default)]
     dlp:           DlpConfig,
-    #[serde(default)]
     ui:            UiConfig,
 }
 
