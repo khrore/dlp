@@ -29,6 +29,7 @@ use tokio::sync::Mutex;
 use super::{StorageBackend, UpdateReplicaStatusResult};
 
 #[derive(Debug, Clone)]
+/// In-memory storage backend used for tests and local execution.
 pub struct MemoryStorage {
     inner: Arc<Mutex<MemoryState>>,
 }
@@ -51,6 +52,7 @@ struct MemoryState {
 
 impl MemoryStorage {
     #[must_use]
+    /// Creates an empty in-memory storage backend.
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(MemoryState {
@@ -67,6 +69,12 @@ impl MemoryStorage {
         let mut state = self.inner.lock().await;
         state.next_id = state.next_id.saturating_add(1);
         Ok(format!("{prefix}-{}", state.next_id))
+    }
+}
+
+impl Default for MemoryStorage {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

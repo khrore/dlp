@@ -1,10 +1,7 @@
-#![expect(
-    unreachable_pub,
-    reason = "These helpers stay public within a private module tree for sibling access."
-)]
-
 use dlp_domain::{Lease, Worker, WorkerCapability, WorkloadRequirement};
 
+/// Returns whether a worker capability exactly matches a workload requirement
+/// profile.
 pub fn capability_matches(
     capability: &WorkerCapability,
     requirement: &WorkloadRequirement,
@@ -16,6 +13,8 @@ pub fn capability_matches(
         && capability.architecture_family() == requirement.architecture_family()
 }
 
+/// Computes remaining worker slots and memory for a matching requirement
+/// profile.
 pub fn available_capacity_for_requirement(
     worker: &Worker,
     requirement: &WorkloadRequirement,
@@ -48,6 +47,7 @@ pub fn available_capacity_for_requirement(
         })
 }
 
+/// Returns whether a worker has enough remaining capacity for a requirement.
 pub fn worker_is_eligible(
     worker: &Worker,
     requirement: &WorkloadRequirement,

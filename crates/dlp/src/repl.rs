@@ -1,8 +1,3 @@
-#![expect(
-    unreachable_pub,
-    reason = "REPL helpers are shared between sibling modules in this binary crate."
-)]
-
 use anyhow::{Result, bail};
 use dlp_client::DlpClient;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
@@ -12,6 +7,11 @@ use crate::{
     commands::execute_command,
 };
 
+/// Runs the interactive REPL loop for the DLP client.
+///
+/// # Errors
+///
+/// Returns an error when stdin, stdout, or a client request fails.
 pub async fn run_repl(client: DlpClient) -> Result<()> {
     let stdin = BufReader::new(io::stdin());
     let mut lines = stdin.lines();
@@ -51,6 +51,12 @@ pub async fn run_repl(client: DlpClient) -> Result<()> {
     Ok(())
 }
 
+/// Parses a single REPL command line into an interactive command.
+///
+/// # Errors
+///
+/// Returns an error when the input is empty or does not match a supported
+/// command.
 pub fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
     match input.trim() {
         "" => bail!("enter a command"),

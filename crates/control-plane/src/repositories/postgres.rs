@@ -94,6 +94,7 @@ mod ids {
     }
 }
 
+/// PostgreSQL-backed storage backend for the control plane.
 #[derive(Debug, Clone)]
 pub struct PostgresStorage {
     db: DatabaseConnection,
@@ -101,15 +102,14 @@ pub struct PostgresStorage {
 
 impl PostgresStorage {
     #[must_use]
+    /// Creates a `PostgreSQL` storage backend from an existing database
+    /// connection.
     pub const fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
-    #[expect(
-        dead_code,
-        reason = "Only tests and debugging helpers need direct database access."
-    )]
     #[must_use]
+    /// Returns the underlying database connection.
     pub const fn connection(&self) -> &DatabaseConnection {
         &self.db
     }

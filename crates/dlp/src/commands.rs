@@ -1,8 +1,3 @@
-#![expect(
-    unreachable_pub,
-    reason = "The command runner is shared between sibling modules in this binary crate."
-)]
-
 use anyhow::Result;
 use dlp_api::{deployments::CreateDeploymentRequest, shared::WorkloadRequirementDto};
 use dlp_client::{DeploymentsClient as _, DlpClient, ReplicasClient as _, WorkersClient as _};
@@ -12,6 +7,11 @@ use crate::{
     render::{format_deployment, format_replica, format_worker},
 };
 
+/// Executes a parsed CLI command and returns formatted terminal output.
+///
+/// # Errors
+///
+/// Returns an error when the underlying client request fails.
 pub async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {
     match command {
         Command::Health => {

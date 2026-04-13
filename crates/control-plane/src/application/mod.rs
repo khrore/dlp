@@ -1,9 +1,4 @@
 #![expect(
-    unreachable_pub,
-    reason = "These orchestration types are shared between sibling modules through a private \
-              parent module."
-)]
-#![expect(
     clippy::shadow_unrelated,
     reason = "The reconcile loop intentionally reuses collection names across passes."
 )]
@@ -30,14 +25,19 @@ use crate::{
     repositories::UpdateReplicaStatusResult,
 };
 
-#[derive(Clone)]
+/// Internal control-plane orchestration service used by the HTTP layer and
+/// tests.
+#[derive(Debug, Clone)]
 pub struct ControlPlaneService {
     state: SharedState,
 }
 
+/// Internal errors produced while applying replica status updates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateReplicaStatusError {
+    /// The provided lease information conflicts with the stored replica lease.
     LeaseConflict(String),
+    /// The requested replica does not exist.
     UnknownReplica,
 }
 

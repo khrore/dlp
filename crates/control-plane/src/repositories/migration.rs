@@ -13,6 +13,8 @@
 
 use sea_orm_migration::prelude::*;
 
+/// `SeaORM` migrator for the control-plane `PostgreSQL` schema.
+#[derive(Debug)]
 pub struct Migrator;
 
 #[async_trait::async_trait]

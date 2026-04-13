@@ -26,6 +26,30 @@ use sea_orm::{ConnectOptions, Database};
 use sea_orm_migration::MigratorTrait as _;
 use tokio::time::{self, MissedTickBehavior};
 
+#[doc(hidden)]
+pub mod internal {
+    pub use super::{
+        application::{ControlPlaneService, UpdateReplicaStatusError},
+        domain_services::{
+            reconcile,
+            reconcile::{DEFAULT_RECONCILE_INTERVAL, DEFAULT_WORKER_LOST_TIMEOUT},
+            scheduler,
+            scheduler::{
+                available_capacity_for_requirement, capability_matches, worker_is_eligible,
+            },
+        },
+        http::router,
+        mappers::{
+            artifact_ref_from_string, assignment_to_dto, capability_from_dto, capability_to_dto,
+            deployment_status_to_dto, deployment_to_dto, replica_state_from_dto, replica_to_dto,
+            requirement_from_dto, requirement_to_dto, worker_state_from_dto, worker_to_dto,
+        },
+        repositories::{
+            MemoryStorage, Migrator, PostgresStorage, StorageBackend, UpdateReplicaStatusResult,
+        },
+    };
+}
+
 /// Shared application state wrapper used by the control plane.
 #[derive(Clone)]
 pub struct SharedState(Arc<dyn RuntimeStorageBackend>);

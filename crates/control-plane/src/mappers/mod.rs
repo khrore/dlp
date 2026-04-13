@@ -1,8 +1,4 @@
 #![expect(
-    unreachable_pub,
-    reason = "Mapper functions are shared between sibling modules through a private parent module."
-)]
-#![expect(
     clippy::missing_const_for_fn,
     reason = "These tiny mapping helpers stay non-const for readability and consistency."
 )]
@@ -28,6 +24,7 @@ use dlp_domain::{
     WorkloadRequirementSpec,
 };
 
+/// Maps a domain deployment into its API DTO representation.
 pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     DeploymentDto {
         artifact_ref:     deployment.artifact_ref().to_string(),
@@ -39,6 +36,7 @@ pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     }
 }
 
+/// Maps a domain deployment status summary into its API DTO representation.
 pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentStatusSummaryDto {
     DeploymentStatusSummaryDto {
         assigned_replicas: status.assigned_replicas(),
@@ -51,6 +49,7 @@ pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentS
     }
 }
 
+/// Maps a domain replica into its API DTO representation.
 pub fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     ReplicaDto {
         deployment_id:  replica.deployment_id().to_string(),
@@ -62,6 +61,7 @@ pub fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     }
 }
 
+/// Maps a domain worker into its API DTO representation.
 pub fn worker_to_dto(worker: &Worker) -> WorkerDto {
     WorkerDto {
         assigned_replicas: worker.assigned_replicas(),
@@ -77,6 +77,7 @@ pub fn worker_to_dto(worker: &Worker) -> WorkerDto {
     }
 }
 
+/// Maps a worker capability into its API DTO representation.
 pub fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
     WorkerCapabilityDto {
         accelerator_runtime:    capability.accelerator_runtime().to_string(),
@@ -89,6 +90,7 @@ pub fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
     }
 }
 
+/// Maps a workload requirement into its API DTO representation.
 pub fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirementDto {
     WorkloadRequirementDto {
         accelerator_runtime:      requirement.accelerator_runtime().to_string(),
@@ -101,6 +103,8 @@ pub fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirem
     }
 }
 
+/// Maps an assignment triple into the worker assignment DTO returned by the
+/// API.
 pub fn assignment_to_dto(
     deployment: &Deployment,
     lease: &Lease,
@@ -116,6 +120,12 @@ pub fn assignment_to_dto(
     }
 }
 
+/// Builds a domain workload requirement from its API DTO form.
+///
+/// # Errors
+///
+/// Returns an error when the DTO contains invalid runtime, architecture, or
+/// other domain values.
 pub fn requirement_from_dto(dto: WorkloadRequirementDto) -> DomainResult<WorkloadRequirement> {
     Ok(WorkloadRequirement::new(WorkloadRequirementSpec::new(
         WorkloadProfile::new(
@@ -130,6 +140,12 @@ pub fn requirement_from_dto(dto: WorkloadRequirementDto) -> DomainResult<Workloa
     )))
 }
 
+/// Builds a domain worker capability from its API DTO form.
+///
+/// # Errors
+///
+/// Returns an error when the DTO contains invalid runtime, architecture, or
+/// other domain values.
 pub fn capability_from_dto(dto: WorkerCapabilityDto) -> DomainResult<WorkerCapability> {
     Ok(WorkerCapability::new(WorkerCapabilitySpec::new(
         WorkloadProfile::new(
@@ -144,10 +160,16 @@ pub fn capability_from_dto(dto: WorkerCapabilityDto) -> DomainResult<WorkerCapab
     )))
 }
 
+/// Validates an artifact reference string and converts it into the domain type.
+///
+/// # Errors
+///
+/// Returns an error when the provided artifact reference is invalid.
 pub fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
     ArtifactRef::new(value)
 }
 
+/// Maps an API replica state into the domain replica state.
 pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     match state {
         ReplicaStateDto::Assigned => ReplicaState::Assigned,
@@ -160,6 +182,7 @@ pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     }
 }
 
+/// Maps an API worker state into the domain worker state.
 pub fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
     match state {
         WorkerStateDto::Draining => WorkerState::Draining,

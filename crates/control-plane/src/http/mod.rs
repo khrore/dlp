@@ -1,9 +1,3 @@
-#![expect(
-    unreachable_pub,
-    reason = "HTTP router construction is shared between sibling modules through a private parent \
-              module."
-)]
-
 mod deployments;
 mod workers;
 
@@ -15,6 +9,7 @@ use dlp_api::health::StatusDto;
 
 use crate::SharedState;
 
+/// Builds the internal Axum router for the control-plane API.
 pub fn router(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))

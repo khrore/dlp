@@ -1,10 +1,6 @@
-#![expect(
-    unreachable_pub,
-    reason = "Formatting helpers are shared between sibling modules in this binary crate."
-)]
-
 use dlp_api::{deployments::DeploymentDto, replicas::ReplicaDto, workers::WorkerDto};
 
+/// Formats a deployment summary for terminal output.
 pub fn format_deployment(deployment: &DeploymentDto) -> String {
     format!(
         "{} ({}) artifact={} desired={} pending={} assigned={} pulling={} starting={} ready={} \
@@ -23,6 +19,7 @@ pub fn format_deployment(deployment: &DeploymentDto) -> String {
     )
 }
 
+/// Formats a replica summary for terminal output.
 pub fn format_replica(replica: ReplicaDto) -> String {
     let worker = replica.worker_id.unwrap_or_else(|| "unassigned".to_owned());
     let lease = replica.lease_id.unwrap_or_else(|| "none".to_owned());
@@ -36,6 +33,7 @@ pub fn format_replica(replica: ReplicaDto) -> String {
     )
 }
 
+/// Formats a worker summary for terminal output.
 pub fn format_worker(worker: WorkerDto) -> String {
     let capabilities = worker
         .capabilities

@@ -1,13 +1,14 @@
-#![expect(
-    unreachable_pub,
-    reason = "Configuration resolution is shared between sibling modules in this binary crate."
-)]
-
 use anyhow::Result;
 use app_config::{DlpConfig, load_dlp_config};
 
 use crate::args::Args;
 
+/// Resolves the effective client configuration from file configuration and CLI
+/// overrides.
+///
+/// # Errors
+///
+/// Returns an error when the base configuration cannot be loaded.
 pub fn resolve_config(args: &Args) -> Result<DlpConfig> {
     let mut config = load_dlp_config()?;
 
