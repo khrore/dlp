@@ -348,8 +348,6 @@ missing_assert_message = { level = "warn" }
 missing_trait_methods = { level = "warn" }
 # Detects public item names that are prefixed or suffixed by the containing public module’s name.
 module_name_repetitions = { level = "warn" }
-# Restricts the usage of pub use ...
-pub_use = { level = "warn" }
 # Checks for test functions (functions annotated with #[test]) that are prefixed with test_ which is redundant.
 redundant_test_prefix = { level = "warn" }
 # Checks for usages of the ref keyword.
