@@ -131,7 +131,6 @@ pub struct DeploymentStatusSummary {
 }
 
 impl DeploymentStatusSummary {
-    #[must_use]
     pub const fn new() -> Self {
         Self {
             pending_replicas:  0,

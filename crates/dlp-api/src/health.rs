@@ -7,7 +7,6 @@ pub struct HealthResponse {
 }
 
 impl HealthResponse {
-    #[must_use]
     pub fn ok(service: impl Into<String>) -> Self {
         Self {
             service: service.into(),
