@@ -1,8 +1,3 @@
-#![expect(
-    clippy::shadow_reuse,
-    reason = "Path parameters are re-bound into validated domain identifiers for request handling."
-)]
-
 use axum::{
     Json,
     extract::{Path, State},

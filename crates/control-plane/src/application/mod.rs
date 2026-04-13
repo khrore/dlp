@@ -1,7 +1,3 @@
-#![expect(
-    clippy::shadow_unrelated,
-    reason = "The reconcile loop intentionally reuses collection names across passes."
-)]
 use std::time::Duration;
 
 use anyhow::Result;

@@ -7,10 +7,6 @@
     reason = "Trait imports are used for method resolution against SeaORM types."
 )]
 #![expect(
-    clippy::shadow_reuse,
-    reason = "Validated identifiers and loaded records intentionally reuse domain names."
-)]
-#![expect(
     clippy::absolute_paths,
     reason = "A few fully qualified helper paths are clearer inside the repository adapter."
 )]
