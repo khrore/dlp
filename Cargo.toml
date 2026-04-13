@@ -43,120 +43,118 @@ tower = "0.5"
 # Enable allowed-by-default lints https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
 [workspace.lints.rust]
 # Detects absolute paths that start with a module name instead of crate, self, or an external crate name
-absolute-paths-not-starting-with-crate = "warn"
+absolute-paths-not-starting-with-crate = "deny"
 # Detects ambiguity between a negative literal and negation that is not part of the literal
-ambiguous-negative-literals = "warn"
+ambiguous-negative-literals = "deny"
 # Detects cases where a closure returns an async block
-closure-returning-async-block = "warn"
+closure-returning-async-block = "deny"
 # Triggers when `Deref` is implemented for `dyn SubTrait` with `dyn SuperTrait` as the `Output` type
-deref-into-dyn-supertrait = "warn"
+deref-into-dyn-supertrait = "deny"
 # Detects unnecessary lifetime bounds that can be inferred automatically
-explicit-outlives-requirements = "warn"
+explicit-outlives-requirements = "deny"
 # Detects a temporary with significant destruction on the right side of `if let` and suggests rewriting it as `match`
-if-let-rescope = "warn"
+if-let-rescope = "deny"
 # Detects unnecessary use of precise capture `use<...>`
-impl-trait-redundant-captures = "warn"
+impl-trait-redundant-captures = "deny"
 # Detects imports that are redundant because they were already imported
-redundant-imports = "warn"
+redundant-imports = "deny"
 # Detects lifetime parameters that are redundant because they are equal to another named lifetime
-redundant-lifetimes = "warn"
+redundant-lifetimes = "deny"
 # Detects lifetimes that are used only once
-single-use-lifetimes = "warn"
+single-use-lifetimes = "deny"
 # Detects values created in tail expressions that trigger a custom `Drop` destructor
-tail-expr-drop-order = "warn"
+tail-expr-drop-order = "deny"
 # Detects trivial casts that can be replaced with coercions
-trivial-casts = "warn"
+trivial-casts = "deny"
 # Detects trivial numeric casts that can be removed
-trivial-numeric-casts = "warn"
+trivial-numeric-casts = "deny"
 # Detects bindings that are useless because their inferred type is the unit type `()`
-unit-bindings = "warn"
+unit-bindings = "deny"
 # Detects enums with significantly different variant sizes
-variant-size-differences = "warn"
+variant-size-differences = "deny"
 # Use of elided lifetime parameters
-elided-lifetimes-in-paths = "warn"
-# Forward linker warnings
-linker-messages = "warn"
+elided-lifetimes-in-paths = "deny"
+# Forward linker denyings
+linker-messages = "deny"
 # Missing `fmt::Debug` implementations for public types
-missing-debug-implementations = "warn"
+missing-debug-implementations = "deny"
 # Checks for statements
-let-underscore-drop = "warn"
+let-underscore-drop = "deny"
 # Detects non-ASCII identifiers.
-non-ascii-idents = "warn"
+non-ascii-idents = "deny"
 # The unnameable_types lint detects types for which you can get objects of that type, but cannot name the type itself.
-unnameable-types = "warn"
+unnameable-types = "deny"
 # triggers for pub items not reachable from other crates - that means neither directly accessible
-unreachable-pub = "warn"
+unreachable-pub = "deny"
 
 # Unsafe
 # Detects missing `unsafe` on attributes considered unsafe
-unsafe-attr-outside-unsafe = "warn"
+unsafe-attr-outside-unsafe = "deny"
 # Use of `#![feature]`
-unstable-features = "warn"
+unstable-features = "deny"
 # Use of `unsafe` code and other potentially unsafe constructs such as `no_mangle`, `export_name`, and `link_section`
 unsafe-code = "deny"
 # Detects unsafe operations inside unsafe functions without an explicit unsafe block
 unsafe-op-in-unsafe-fn = "deny"
 # Missing documentation for public items
-missing_docs = "warn"
+missing_docs = "deny"
 # The ffi_unwind_calls lint detects calls to foreign functions or function pointers with C-unwind or other FFI-unwind ABIs.
-ffi-unwind-calls = "warn"
+ffi-unwind-calls = "deny"
 # Missing `unsafe` in extern declarations
-missing-unsafe-on-extern = "warn"
+missing-unsafe-on-extern = "deny"
 
 # Rust 2024
 # Unsafe functions used as if they were safe
-deprecated-safe-2024 = "warn"
+deprecated-safe-2024 = "deny"
 # Use of expression fragments in macros when migrating to the 2024 edition
-edition-2024-expr-fragment-specifier = "warn"
+edition-2024-expr-fragment-specifier = "deny"
 # Lifetime capture behavior will differ in the 2024 edition
-impl-trait-overcaptures = "warn"
+impl-trait-overcaptures = "deny"
 # Keywords used as identifiers
-keyword-idents-2024 = "warn"
+keyword-idents-2024 = "deny"
 # Patterns whose meaning changes in Rust 2024
-rust-2024-incompatible-pat = "warn"
+rust-2024-incompatible-pat = "deny"
 # Trait methods that become ambiguous with traits added to the prelude in future editions
-rust-2024-prelude-collisions = "warn"
+rust-2024-prelude-collisions = "deny"
 # detects `#` tokens that will be parsed as part of a guarded string literal in Rust 2024.
-rust-2024-guarded-string-incompatible-syntax = "warn"
+rust-2024-guarded-string-incompatible-syntax = "deny"
 
 # Unused
 # Detects crate dependencies that are never used
 unused-crate-dependencies = "deny"
 # Protects against `extern crate` items that are never used
-unused-extern-crates = "warn"
+unused-extern-crates = "deny"
 # Unnecessary braces around imported items
-unused-import-braces = "warn"
+unused-import-braces = "deny"
 # Detects lifetime parameters that are never used
-unused-lifetimes = "warn"
+unused-lifetimes = "deny"
 # Detects macro rules that were never used
-unused-macro-rules = "warn"
+unused-macro-rules = "deny"
 # Detects unnecessarily qualified names
-unused-qualifications = "warn"
+unused-qualifications = "deny"
 
 # Macros
 # Detects use of the `macro_use` attribute
-macro-use-extern-crate = "warn"
+macro-use-extern-crate = "deny"
 # Possible misuse of meta-variables in macro definitions
-meta-variable-misuse = "warn"
+meta-variable-misuse = "deny"
 
 # Clippy linting https://rust-lang.github.io/rust-clippy/stable/index.html
 [workspace.lints.clippy]
-# Many packages use different versions of the same crates; fixing that is too costly
-multiple_crate_versions = "allow"
 # Improve `Cargo.toml`
-cargo = { level = "warn", priority = -1 }
+cargo = { level = "deny", priority = -1 }
 # Simplify code
-complexity = { level = "warn", priority = -1 }
+complexity = { level = "deny", priority = -1 }
 # Deep code inspection
-pedantic = { level = "warn", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 # Improve performance
-perf = { level = "warn", priority = -1 }
+perf = { level = "deny", priority = -1 }
 # Encourage idiomatic code
-style = { level = "warn", priority = -1 }
+style = { level = "deny", priority = -1 }
 # Similar to correctness, but the code may be intentionally written this way
-suspicious = { level = "warn", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
 # The newest rules that are still under development
-nursery = { level = "warn", priority = -1 }
+nursery = { level = "deny", priority = -1 }
 
 # Custom Clippy rule configuration
 
@@ -167,9 +165,6 @@ nursery = { level = "warn", priority = -1 }
 option_if_let_else = { level = "allow" }
 # `#[must_use]` should be applied intentionally, not because pedantic suggests it everywhere
 must_use_candidate = { level = "allow" }
-# Checks whether string literals contain formatting arguments outside the macros
-# that use them (for example, `format!`).
-literal_string_with_formatting_args = { level = "warn" }
 
 # Restriction group
 #
@@ -184,195 +179,195 @@ panic = { level = "deny" }
 # Use of `panic!` in functions that return `Result`
 panic_in_result_fn = { level = "deny" }
 # Output to stderr
-print_stderr = { level = "deny" }
+print_stderr = { level = "warn" }
 # Output to stdout
-print_stdout = { level = "deny" }
+print_stdout = { level = "warn" }
 # `unwrap` in functions that return `Result`
 unwrap_in_result = { level = "deny" }
 # Use of `unwrap`
 unwrap_used = { level = "deny" }
 # Ignoring errors in `map_err`
-map_err_ignore = { level = "warn" }
+map_err_ignore = { level = "deny" }
 # Use of `map` with an unused argument over ranges
-map_with_unused_argument_over_ranges = { level = "warn" }
+map_with_unused_argument_over_ranges = { level = "deny" }
 # Use of casts via `as`
-as_conversions = { level = "warn" }
+as_conversions = { level = "deny" }
 # `as` cast to the placeholder type `_`
-as_underscore = { level = "warn" }
+as_underscore = { level = "deny" }
 # `as` cast to a pointer to an inferred type
-as_pointer_underscore = { level = "warn" }
+as_pointer_underscore = { level = "deny" }
 # Use of `#[cfg(not(test))]` instead of `#[cfg(test)]`
-cfg_not_test = { level = "warn" }
+cfg_not_test = { level = "deny" }
 # Dereferencing by creating a slice instead of explicit dereferencing
-deref_by_slicing = { level = "warn" }
+deref_by_slicing = { level = "deny" }
 # `if-else` chains without a final `else`
-else_if_without_else = { level = "warn" }
+else_if_without_else = { level = "deny" }
 # Implementing `Error` for types whose names contain "Error"
-error_impl_error = { level = "warn" }
+error_impl_error = { level = "deny" }
 # Visibility modifiers at struct field level
-field_scoped_visibility_modifiers = { level = "warn" }
+field_scoped_visibility_modifiers = { level = "deny" }
 # Calling `is_file()` on `Path` instead of checking metadata
-filetype_is_file = { level = "warn" }
+filetype_is_file = { level = "deny" }
 # Comparing floating-point numbers with constants
-float_cmp_const = { level = "warn" }
+float_cmp_const = { level = "deny" }
 # Casting a function pointer to a numeric type
-fn_to_numeric_cast_any = { level = "warn" }
+fn_to_numeric_cast_any = { level = "deny" }
 # `if { Some(x) } else { None }` pattern that can be simplified
-if_then_some_else_none = { level = "warn" }
+if_then_some_else_none = { level = "deny" }
 # Use of `impl Trait` in function parameters
-impl_trait_in_params = { level = "warn" }
+impl_trait_in_params = { level = "deny" }
 # Infinite loops that can be replaced with explicit constructs
-infinite_loop = { level = "warn" }
+infinite_loop = { level = "deny" }
 # Iterating over `HashMap` or `HashSet` (non-deterministic order)
-iter_over_hash_type = { level = "warn" }
+iter_over_hash_type = { level = "deny" }
 # Mixed reading and writing in one expression
-mixed_read_write_in_expression = { level = "warn" }
+mixed_read_write_in_expression = { level = "deny" }
 # Multiple inherent impl blocks for one type
-multiple_inherent_impl = { level = "warn" }
+multiple_inherent_impl = { level = "deny" }
 # Use of `Mutex` to guard atomic types
-mutex_atomic = { level = "warn" }
+mutex_atomic = { level = "deny" }
 # Use of `Mutex` to guard integer types
-mutex_integer = { level = "warn" }
+mutex_integer = { level = "deny" }
 # Use of `Rc` with buffer types (`Vec`, `String`, etc.)
-rc_buffer = { level = "warn" }
+rc_buffer = { level = "deny" }
 # Use of `Rc` with `Mutex` (prefer `Arc`)
-rc_mutex = { level = "warn" }
+rc_mutex = { level = "deny" }
 # String indexing that can panic
-string_slice = { level = "warn" }
+string_slice = { level = "deny" }
 # Use of `^` (XOR) instead of `pow` for exponentiation
-suspicious_xor_used_as_pow = { level = "warn" }
+suspicious_xor_used_as_pow = { level = "deny" }
 # Use of the `dbg!` macro
-dbg_macro = { level = "warn" }
+dbg_macro = { level = "deny" }
 # Decimal representation of literals
-decimal_literal_representation = { level = "warn" }
+decimal_literal_representation = { level = "deny" }
 # Empty `Drop` implementation
-empty_drop = { level = "warn" }
+empty_drop = { level = "deny" }
 # Empty enum variants with braces
-empty_enum_variants_with_brackets = { level = "warn" }
+empty_enum_variants_with_brackets = { level = "deny" }
 # Empty structs with braces
-empty_structs_with_brackets = { level = "warn" }
+empty_structs_with_brackets = { level = "deny" }
 # Integer division that can lose a remainder
-integer_division = { level = "warn" }
+integer_division = { level = "deny" }
 # Use of division or remainder operations with integers
-integer_division_remainder_used = { level = "warn" }
+integer_division_remainder_used = { level = "deny" }
 # Including large files via `include_bytes!` or `include_str!`
-large_include_file = { level = "warn" }
+large_include_file = { level = "deny" }
 # Use of the remainder operator (`%`) that can panic
-modulo_arithmetic = { level = "warn" }
+modulo_arithmetic = { level = "deny" }
 # Unnecessary use of raw strings
-needless_raw_strings = { level = "warn" }
+needless_raw_strings = { level = "deny" }
 # Multiple unsafe operations in one unsafe block
-multiple_unsafe_ops_per_block = { level = "warn" }
+multiple_unsafe_ops_per_block = { level = "deny" }
 # Suggestions to use `NonZero` types
-non_zero_suggestions = { level = "warn" }
+non_zero_suggestions = { level = "deny" }
 # Structs with partially public fields
-partial_pub_fields = { level = "warn" }
+partial_pub_fields = { level = "deny" }
 # Initializing `PathBuf` and then calling `push` instead of creating it directly
-pathbuf_init_then_push = { level = "warn" }
+pathbuf_init_then_push = { level = "deny" }
 # Use of `pub(in ...)` instead of the shorthand `pub(crate)` or `pub(super)`
-pub_without_shorthand = { level = "warn" }
+pub_without_shorthand = { level = "deny" }
 # Redundant type annotations
-redundant_type_annotations = { level = "warn" }
+redundant_type_annotations = { level = "deny" }
 # Use of `..` in fully bound structs
-rest_pat_in_fully_bound_structs = { level = "warn" }
+rest_pat_in_fully_bound_structs = { level = "deny" }
 # Use of `return` with `then` instead of `and_then`
-return_and_then = { level = "warn" }
+return_and_then = { level = "deny" }
 # Semicolon inside a block instead of after the block
-semicolon_inside_block = { level = "warn" }
+semicolon_inside_block = { level = "deny" }
 # Literal suffixes separated from the value
-separated_literal_suffix = { level = "warn" }
+separated_literal_suffix = { level = "deny" }
 # Use of single-character lifetime names
-single_char_lifetime_names = { level = "warn" }
+single_char_lifetime_names = { level = "deny" }
 # Converting `&str` to `String` via `to_string` instead of `to_owned`
-str_to_string = { level = "warn" }
+str_to_string = { level = "deny" }
 # Use of the `+` operator for string concatenation
-string_add = { level = "warn" }
+string_add = { level = "deny" }
 # Use of `chars().any()` instead of `contains()` for string literals
-string_lit_chars_any = { level = "warn" }
+string_lit_chars_any = { level = "deny" }
 # Tests outside the `tests` module
-tests_outside_test_module = { level = "warn" }
+tests_outside_test_module = { level = "deny" }
 # Use of the `todo!` macro
-todo = { level = "warn" }
+todo = { level = "deny" }
 # Use of `try!()` instead of the `?` operator
-try_err = { level = "warn" }
+try_err = { level = "deny" }
 # Use of `unimplemented!`
-unimplemented = { level = "warn" }
+unimplemented = { level = "deny" }
 # Unnecessary safety comments
-unnecessary_safety_comment = { level = "warn" }
+unnecessary_safety_comment = { level = "deny" }
 # Unnecessary safety documentation
-unnecessary_safety_doc = { level = "warn" }
+unnecessary_safety_doc = { level = "deny" }
 # Unnecessary `self` import
-unnecessary_self_imports = { level = "warn" }
+unnecessary_self_imports = { level = "deny" }
 # Unnecessary field patterns (`field: _`)
-unneeded_field_pattern = { level = "warn" }
+unneeded_field_pattern = { level = "deny" }
 # Use of `unreachable!`
-unreachable = { level = "warn" }
+unreachable = { level = "deny" }
 # Literal suffixes not separated from the value
-unseparated_literal_suffix = { level = "warn" }
+unseparated_literal_suffix = { level = "deny" }
 # `#[allow]` attributes without a reason
-allow_attributes_without_reason = { level = "warn" }
+allow_attributes_without_reason = { level = "deny" }
 #
 # Experemental
 #
 # Checks for usage of items through absolute paths
-absolute_paths = { level = "warn" }
+absolute_paths = { level = "deny" }
 # Checks for usage of the #[allow] attribute and suggests replacing it with the #[expect] attribute
-allow_attributes = { level = "warn" }
+allow_attributes = { level = "deny" }
 # Confirms that items are sorted in source files as per configuration.
-arbitrary_source_item_ordering = { level = "warn" }
+arbitrary_source_item_ordering = { level = "deny" }
 # Checks any kind of arithmetic operation of any type.
-arithmetic_side_effects  = { level = "warn" }
+arithmetic_side_effects  = { level = "deny" }
 # Checks for assert!(r.is_ok()) or assert!(r.is_err()) calls.
-assertions_on_result_states = { level = "warn" }
+assertions_on_result_states = { level = "deny" }
 # Checks for usage of .clone() on a ref-counted pointer,
-clone_on_ref_ptr = { level = "warn" }
+clone_on_ref_ptr = { level = "deny" }
 # Checks usage of std::fs::create_dir and suggest using std::fs::create_dir_all instead.
-create_dir = { level = "warn" }
+create_dir = { level = "deny" }
 # Checks for usage of unicode scripts other than those explicitly allowed by the lint config.
-disallowed_script_idents = { level = "warn" }
+disallowed_script_idents = { level = "deny" }
 # Checks if included files in doc comments are included only for cfg(doc)
-doc_include_without_cfg = { level = "warn" }
+doc_include_without_cfg = { level = "deny" }
 # Checks for doc comments whose paragraphs do not end with a period or another punctuation mark
-doc_paragraphs_missing_punctuation = { level = "warn" }
+doc_paragraphs_missing_punctuation = { level = "deny" }
 # Checks for usage of indexing or slicing that may panic at runtime.
-indexing_slicing = { level = "warn" }
+indexing_slicing = { level = "deny" }
 # Checks for whole number float literals that cannot be represented as the underlying type without loss.
-lossy_float_literal = { level = "warn" }
+lossy_float_literal = { level = "deny" }
 # Checks for usage of std::mem::forget(t) where t is Drop or has a field that implements Drop.
-mem_forget = { level = "warn" }
+mem_forget = { level = "deny" }
 # Checks for identifiers which consist of a single character (or fewer than the configured threshold).
-min_ident_chars = { level = "warn" }
+min_ident_chars = { level = "deny" }
 # Checks assertions without a custom panic message.
-missing_assert_message = { level = "warn" }
+missing_assert_message = { level = "deny" }
 # Checks if a provided method is used implicitly by a trait implementation.
-missing_trait_methods = { level = "warn" }
+missing_trait_methods = { level = "deny" }
 # Detects public item names that are prefixed or suffixed by the containing public module’s name.
-module_name_repetitions = { level = "warn" }
+module_name_repetitions = { level = "deny" }
 # Restricts the usage of pub use ...
-pub_use = { level = "warn" }
+pub_use = { level = "deny" }
 # Checks for test functions (functions annotated with #[test]) that are prefixed with test_ which is redundant.
-redundant_test_prefix = { level = "warn" }
+redundant_test_prefix = { level = "deny" }
 # Checks for usages of the ref keyword.
-ref_patterns = { level = "warn" }
+ref_patterns = { level = "deny" }
 # Lints when the name of function parameters from trait impl is different than its default implementation.
-renamed_function_params = { level = "warn" }
+renamed_function_params = { level = "deny" }
 # It lints if a struct has two methods with the same name: one from a trait, another not from a trait.
-same_name_method = { level = "warn" }
+same_name_method = { level = "deny" }
 # Checks that module layout uses only mod.rs files.
-self_named_module_files = { level = "warn" }
+self_named_module_files = { level = "deny" }
 # Checks for bindings that shadow other bindings already in scope, while reusing the original value.
-shadow_reuse = { level = "warn" }
+shadow_reuse = { level = "deny" }
 # Checks for bindings that shadow other bindings already in scope, while just changing reference level or mutability.
-shadow_same = { level = "warn" }
+shadow_same = { level = "deny" }
 # Checks for bindings that shadow other bindings already in scope, either without an initialization or with one that does not even use the original value.
-shadow_unrelated = { level = "warn" }
+shadow_unrelated = { level = "deny" }
 # Checks for wildcard enum matches using _.
-wildcard_enum_match_arm = { level = "warn" }
+wildcard_enum_match_arm = { level = "deny" }
 # Checks for usage of File::read_to_end and File::read_to_string.
-verbose_file_reads = { level = "warn" }
+verbose_file_reads = { level = "deny" }
 # Checks for usage of Debug formatting. The purpose of this lint is to catch debugging remnants.
-use_debug = { level = "warn" }
+use_debug = { level = "deny" }
 # Checks for use Trait where the Trait is only used for its methods and not referenced by a path directly.
-unused_trait_names = { level = "warn" }
+unused_trait_names = { level = "deny" }
 # Checks for calls to Result::ok() without using the returned Option.
-unused_result_ok = { level = "warn" }
+unused_result_ok = { level = "deny" }
