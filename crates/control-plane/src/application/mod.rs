@@ -1,4 +1,12 @@
-use std::{sync::Arc, time::Duration};
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "These orchestration types are shared between sibling modules through a private parent module."
+)]
+#![expect(
+    clippy::shadow_unrelated,
+    reason = "The reconcile loop intentionally reuses collection names across passes."
+)]
+use std::time::Duration;
 
 use anyhow::Result;
 use dlp_api::{
@@ -8,48 +16,36 @@ use dlp_api::{
 };
 use dlp_domain::{
     Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState, WorkloadRequirement,
+    Worker, WorkerId, WorkerState, WorkloadProfile, WorkloadRequirement,
+    WorkloadRequirementSpec,
 };
 
 use crate::{
+    domain_services::reconcile::DEFAULT_WORKER_LOST_TIMEOUT,
     domain_services::scheduler::{available_capacity_for_requirement, worker_is_eligible},
     mappers,
-    repositories::{StorageBackend, UpdateReplicaStatusResult},
+    repositories::UpdateReplicaStatusResult,
+    SharedState,
 };
 
 #[derive(Clone)]
-pub struct SharedState(Arc<dyn StorageBackend>);
-
-#[derive(Clone)]
-pub(crate) struct ControlPlaneService {
+pub(super) struct ControlPlaneService {
     state: SharedState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum UpdateReplicaStatusError {
+pub(super) enum UpdateReplicaStatusError {
     LeaseConflict(String),
     UnknownReplica,
 }
 
-impl SharedState {
-    #[must_use]
-    pub fn new(storage: Arc<dyn StorageBackend>) -> Self {
-        Self(storage)
-    }
-
-    #[must_use]
-    pub fn storage(&self) -> Arc<dyn StorageBackend> {
-        Arc::clone(&self.0)
-    }
-}
-
 impl ControlPlaneService {
     #[must_use]
-    pub(crate) fn new(state: SharedState) -> Self {
+    pub(super) const fn new(state: SharedState) -> Self {
         Self { state }
     }
 
-    pub(crate) async fn create_deployment(
+    pub(super) async fn create_deployment(
         &self,
         request: CreateDeploymentRequest,
     ) -> Result<Deployment> {
@@ -61,12 +57,14 @@ impl ControlPlaneService {
             request.replicas_desired,
             mappers::requirement_from_dto(request.requirement)?,
         );
-        let mut replicas = Vec::with_capacity(deployment.replicas_desired() as usize);
+        let mut replicas = Vec::with_capacity(
+            usize::try_from(deployment.replicas_desired()).unwrap_or(usize::MAX),
+        );
         for _ in 0..deployment.replicas_desired() {
             let replica_id = ReplicaId::new(self.state.0.next_replica_id().await?)?;
             replicas.push(Replica::new_pending(replica_id, deployment_id.clone()));
         }
-        deployment.refresh_status(replicas.iter());
+        deployment.refresh_status(&replicas);
         self.state
             .0
             .create_deployment_with_replicas(deployment.clone(), replicas)
@@ -74,27 +72,27 @@ impl ControlPlaneService {
         Ok(deployment)
     }
 
-    pub(crate) async fn get_deployment(
+    pub(super) async fn get_deployment(
         &self,
         deployment_id: &DeploymentId,
     ) -> Result<Option<(Deployment, Vec<Replica>)>> {
         self.refresh_deployment_status(deployment_id).await?;
-        let deployment = self.state.0.deployment(deployment_id).await?;
-        let Some(deployment) = deployment else {
+        let deployment_record = self.state.0.deployment(deployment_id).await?;
+        let Some(deployment) = deployment_record else {
             return Ok(None);
         };
         let replicas = self.state.0.replicas_for_deployment(deployment_id).await?;
         Ok(Some((deployment, replicas)))
     }
 
-    pub(crate) async fn list_replicas(
+    pub(super) async fn list_replicas(
         &self,
         deployment_id: Option<&DeploymentId>,
     ) -> Result<Vec<Replica>> {
         self.state.0.list_replicas(deployment_id).await
     }
 
-    pub(crate) async fn list_workers(&self) -> Result<Vec<Worker>> {
+    pub(super) async fn list_workers(&self) -> Result<Vec<Worker>> {
         self.refresh_worker_summaries().await?;
         let worker_ids = self.state.0.worker_ids().await?;
         let mut workers = Vec::with_capacity(worker_ids.len());
@@ -106,7 +104,7 @@ impl ControlPlaneService {
         Ok(workers)
     }
 
-    pub(crate) async fn register_worker(&self, request: RegisterWorkerRequest) -> Result<Worker> {
+    pub(super) async fn register_worker(&self, request: RegisterWorkerRequest) -> Result<Worker> {
         let worker_id = WorkerId::new(request.worker_id)?;
         let capabilities = request
             .capabilities
@@ -124,7 +122,7 @@ impl ControlPlaneService {
         })
     }
 
-    pub(crate) async fn heartbeat_worker(
+    pub(super) async fn heartbeat_worker(
         &self,
         worker_id: &WorkerId,
         worker_state: WorkerState,
@@ -138,13 +136,13 @@ impl ControlPlaneService {
         match result {
             None => Ok(None),
             Some((_, assignments)) => {
-                let worker = self.state.0.worker(worker_id).await?;
-                Ok(worker.map(|worker| (worker, assignments)))
+                let worker_record = self.state.0.worker(worker_id).await?;
+                Ok(worker_record.map(|worker| (worker, assignments)))
             }
         }
     }
 
-    pub(crate) async fn update_replica_status(
+    pub(super) async fn update_replica_status(
         &self,
         replica_id: &ReplicaId,
         request: UpdateReplicaStatusRequest,
@@ -173,11 +171,11 @@ impl ControlPlaneService {
         }
     }
 
-    pub(crate) async fn reconcile_once(&self) -> Result<()> {
+    pub(super) async fn reconcile_once(&self) -> Result<()> {
         let lost_workers = self
             .state
             .0
-            .lost_worker_ids(crate::domain_services::reconcile::DEFAULT_WORKER_LOST_TIMEOUT)
+            .lost_worker_ids(DEFAULT_WORKER_LOST_TIMEOUT)
             .await?;
         for worker_id in lost_workers {
             self.state
@@ -205,7 +203,11 @@ impl ControlPlaneService {
         Ok(())
     }
 
-    pub(crate) async fn force_last_heartbeat_age(
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "Only integration tests drive this helper today.")
+    )]
+    pub(super) async fn force_last_heartbeat_age(
         &self,
         worker_id: &WorkerId,
         elapsed: Duration,
@@ -245,7 +247,7 @@ impl ControlPlaneService {
             self.state.0.save_replica(replica.clone()).await?;
             current_replicas.push(replica);
         }
-        deployment.refresh_status(current_replicas.iter());
+        deployment.refresh_status(&current_replicas);
         self.state.0.save_deployment(deployment).await
     }
 
@@ -254,7 +256,7 @@ impl ControlPlaneService {
             return Ok(());
         };
         let replicas = self.state.0.replicas_for_deployment(deployment_id).await?;
-        deployment.refresh_status(replicas.iter());
+        deployment.refresh_status(&replicas);
         self.state.0.save_deployment(deployment).await
     }
 
@@ -269,15 +271,17 @@ impl ControlPlaneService {
                     .filter_map(|capability| {
                         available_capacity_for_requirement(
                             &worker,
-                            &WorkloadRequirement::new(
-                                capability.framework().clone(),
-                                capability.mode().clone(),
-                                capability.device().clone(),
-                                capability.accelerator_runtime().clone(),
-                                capability.architecture_family().clone(),
+                            &WorkloadRequirement::new(WorkloadRequirementSpec::new(
+                                WorkloadProfile::new(
+                                    capability.framework().clone(),
+                                    capability.mode().clone(),
+                                    capability.device().clone(),
+                                    capability.accelerator_runtime().clone(),
+                                    capability.architecture_family().clone(),
+                                ),
                                 0,
                                 0,
-                            ),
+                            )),
                             &active_leases,
                         )
                         .map(|(slots, _)| slots)

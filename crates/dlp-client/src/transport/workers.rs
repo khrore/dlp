@@ -6,9 +6,14 @@ use dlp_api::{
     },
 };
 
-use crate::{ClientError, DlpClient};
+use super::DlpClient;
+use crate::ClientError;
 
 /// Worker endpoints exposed by the API client.
+#[expect(
+    async_fn_in_trait,
+    reason = "These traits are consumed internally by this workspace and do not need Send future guarantees."
+)]
 pub trait Client {
     /// Calls the health-check endpoint.
     async fn health_check(&self) -> Result<StatusDto, ClientError>;

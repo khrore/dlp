@@ -4,19 +4,29 @@ use std::fmt;
 
 use crate::errors::{DomainError, DomainResult};
 
+/// Reference to an artifact that can be deployed by the control plane.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArtifactRef(String);
 
 impl ArtifactRef {
-    pub fn new(value: impl Into<String>) -> DomainResult<Self> {
-        let value = value.into();
-        if value.trim().is_empty() {
+    /// Validates and stores an artifact reference.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::EmptyValue`] when the provided reference is blank.
+    pub fn new<Value>(value: Value) -> DomainResult<Self>
+    where
+        Value: Into<String>,
+    {
+        let artifact_ref = value.into();
+        if artifact_ref.trim().is_empty() {
             return Err(DomainError::EmptyValue("artifact_ref"));
         }
 
-        Ok(Self(value))
+        Ok(Self(artifact_ref))
     }
 
+    /// Returns the raw artifact reference string.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0

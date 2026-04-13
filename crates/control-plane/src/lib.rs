@@ -1,30 +1,44 @@
 //! Axum application and integration tests for the DLP control plane.
 
-pub(crate) mod application;
-pub(crate) mod domain_services;
-pub(crate) mod http;
-pub(crate) mod mappers;
-pub mod repositories;
+mod application;
+mod domain_services;
+mod http;
+mod mappers;
+mod repositories;
 
 use std::sync::Arc;
+use std::fmt::{Debug, Formatter, Result as FmtResult};
 
 use anyhow::{Result, anyhow};
 use app_config as _;
 use app_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
 use application::ControlPlaneService;
-/// Shared application state wrapper used by the control plane.
-pub type SharedState = application::SharedState;
 use axum::Router;
 use clap as _;
 use env_logger as _;
 use log as _;
 use repositories::{
-    StorageBackend as RuntimeStorageBackend, memory::MemoryStorage, migration::Migrator,
-    postgres::PostgresStorage,
+    MemoryStorage, Migrator, PostgresStorage, StorageBackend as RuntimeStorageBackend,
 };
 use sea_orm::{ConnectOptions, Database};
 use sea_orm_migration::MigratorTrait as _;
 use tokio::time::{self, MissedTickBehavior};
+
+/// Shared application state wrapper used by the control plane.
+#[derive(Clone)]
+pub struct SharedState(Arc<dyn RuntimeStorageBackend>);
+
+impl Debug for SharedState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.debug_tuple("SharedState").finish()
+    }
+}
+
+impl SharedState {
+    fn new(storage: Arc<dyn RuntimeStorageBackend>) -> Self {
+        Self(storage)
+    }
+}
 
 /// Creates a control-plane state backed by in-memory storage.
 #[must_use]
@@ -33,6 +47,11 @@ pub fn new_shared_state() -> SharedState {
 }
 
 /// Creates a control-plane state from the configured storage backend.
+///
+/// # Errors
+///
+/// Returns an error when the configured database connection cannot be established or when
+/// migrations fail.
 pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result<SharedState> {
     let storage: Arc<dyn RuntimeStorageBackend> = match config.storage.backend {
         ConfigStorageBackend::Memory => Arc::new(MemoryStorage::new()),
@@ -65,7 +84,6 @@ pub fn spawn_reconcile_loop(state: SharedState) {
 }
 
 /// Builds the Axum router for the control-plane API.
-#[must_use]
 pub fn app(state: SharedState) -> Router {
     http::router(state)
 }

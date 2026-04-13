@@ -165,6 +165,8 @@ nursery = { level = "deny", priority = -1 }
 option_if_let_else = { level = "allow" }
 # `#[must_use]` should be applied intentionally, not because pedantic suggests it everywhere
 must_use_candidate = { level = "allow" }
+# Duplicate transitive versions are currently tolerated while upstream crates converge.
+multiple-crate-versions = { level = "allow" }
 
 # Restriction group
 #
@@ -351,12 +353,6 @@ renamed_function_params = { level = "deny" }
 same_name_method = { level = "deny" }
 # Checks that module layout uses only mod.rs files.
 self_named_module_files = { level = "deny" }
-# Checks for bindings that shadow other bindings already in scope, while reusing the original value.
-shadow_reuse = { level = "deny" }
-# Checks for bindings that shadow other bindings already in scope, while just changing reference level or mutability.
-shadow_same = { level = "deny" }
-# Checks for bindings that shadow other bindings already in scope, either without an initialization or with one that does not even use the original value.
-shadow_unrelated = { level = "deny" }
 # Checks for wildcard enum matches using _.
 wildcard_enum_match_arm = { level = "deny" }
 # Checks for usage of File::read_to_end and File::read_to_string.

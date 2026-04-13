@@ -1,21 +1,39 @@
+//! Shared transport client and endpoint traits.
+
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::ClientError;
 
+mod deployments;
+mod replicas;
+mod workers;
+
+pub use self::{
+    deployments::Client as DeploymentsClient,
+    replicas::Client as ReplicasClient,
+    workers::Client as WorkersClient,
+};
+
+/// HTTP client used by the CLI, UI, and workers to call the control plane API.
 #[derive(Debug, Clone)]
 pub struct DlpClient {
     base_url: String,
 }
 
 impl DlpClient {
+    /// Creates a client bound to the provided API base URL.
     #[must_use]
-    pub fn new(base_url: impl Into<String>) -> Self {
-        let base_url = base_url.into();
+    pub fn new<BaseUrl>(base_url: BaseUrl) -> Self
+    where
+        BaseUrl: Into<String>,
+    {
+        let normalized_base_url = base_url.into();
         Self {
-            base_url: base_url.trim_end_matches('/').to_owned(),
+            base_url: normalized_base_url.trim_end_matches('/').to_owned(),
         }
     }
 
+    /// Returns the normalized API base URL.
     #[must_use]
     pub fn base_url(&self) -> &str {
         &self.base_url

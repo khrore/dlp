@@ -1,3 +1,8 @@
+#![expect(
+    clippy::shadow_reuse,
+    reason = "Path parameters are re-bound into validated domain identifiers for request handling."
+)]
+
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -11,16 +16,17 @@ use dlp_domain::{DeploymentId, DomainError, ReplicaId};
 use serde::Deserialize;
 
 use crate::{
-    application::{ControlPlaneService, SharedState, UpdateReplicaStatusError},
+    application::{ControlPlaneService, UpdateReplicaStatusError},
     mappers,
+    SharedState,
 };
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct ReplicaListQuery {
+pub(super) struct ReplicaListQuery {
     deployment_id: Option<String>,
 }
 
-pub(crate) async fn create_deployment(
+pub(super) async fn create_deployment(
     State(state): State<SharedState>,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<CreateDeploymentResponse>, (StatusCode, String)> {
@@ -29,22 +35,25 @@ pub(crate) async fn create_deployment(
         .create_deployment(request)
         .await
         .map_err(map_error)?;
-    service.reconcile_once().await.map_err(internal_error)?;
+    service
+        .reconcile_once()
+        .await
+        .map_err(|error| internal_error(&error))?;
     Ok(Json(CreateDeploymentResponse {
         deployment: mappers::deployment_to_dto(&deployment),
     }))
 }
 
-pub(crate) async fn get_deployment(
+pub(super) async fn get_deployment(
     State(state): State<SharedState>,
     Path(deployment_id): Path<String>,
 ) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
-    let deployment_id = DeploymentId::new(deployment_id).map_err(invalid_request)?;
+    let deployment_id = DeploymentId::new(deployment_id).map_err(|error| invalid_request(&error))?;
     let service = ControlPlaneService::new(state);
     let (deployment, replicas) = service
         .get_deployment(&deployment_id)
         .await
-        .map_err(internal_error)?
+        .map_err(|error| internal_error(&error))?
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
@@ -58,7 +67,7 @@ pub(crate) async fn get_deployment(
     }))
 }
 
-pub(crate) async fn list_replicas(
+pub(super) async fn list_replicas(
     State(state): State<SharedState>,
     Query(query): Query<ReplicaListQuery>,
 ) -> Result<Json<ListReplicasResponse>, (StatusCode, String)> {
@@ -66,24 +75,24 @@ pub(crate) async fn list_replicas(
         .deployment_id
         .map(DeploymentId::new)
         .transpose()
-        .map_err(invalid_request)?;
+        .map_err(|error| invalid_request(&error))?;
     let service = ControlPlaneService::new(state);
     let replicas = service
         .list_replicas(deployment_id.as_ref())
         .await
-        .map_err(internal_error)?;
+        .map_err(|error| internal_error(&error))?;
 
     Ok(Json(ListReplicasResponse {
         replicas: replicas.iter().map(mappers::replica_to_dto).collect(),
     }))
 }
 
-pub(crate) async fn update_replica_status(
+pub(super) async fn update_replica_status(
     State(state): State<SharedState>,
     Path(replica_id): Path<String>,
     Json(request): Json<UpdateReplicaStatusRequest>,
 ) -> Result<Json<ReplicaDto>, (StatusCode, String)> {
-    let replica_id = ReplicaId::new(replica_id).map_err(invalid_request)?;
+    let replica_id = ReplicaId::new(replica_id).map_err(|error| invalid_request(&error))?;
     let service = ControlPlaneService::new(state.clone());
     let replica = service
         .update_replica_status(&replica_id, request)
@@ -95,22 +104,29 @@ pub(crate) async fn update_replica_status(
             ),
             UpdateReplicaStatusError::LeaseConflict(message) => (StatusCode::CONFLICT, message),
         })?;
-    service.reconcile_once().await.map_err(internal_error)?;
+    service
+        .reconcile_once()
+        .await
+        .map_err(|error| internal_error(&error))?;
     Ok(Json(mappers::replica_to_dto(&replica)))
 }
 
-fn invalid_request(error: impl ToString) -> (StatusCode, String) {
+fn invalid_request(error: &impl ToString) -> (StatusCode, String) {
     (StatusCode::BAD_REQUEST, error.to_string())
 }
 
-fn internal_error(error: impl ToString) -> (StatusCode, String) {
+fn internal_error(error: &impl ToString) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
 }
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "The handler receives the owned anyhow error from map_err and inspects it before rendering."
+)]
 fn map_error(error: anyhow::Error) -> (StatusCode, String) {
     if let Some(domain_error) = error.downcast_ref::<DomainError>() {
         return invalid_request(domain_error);
     }
 
-    internal_error(error)
+    internal_error(&error)
 }

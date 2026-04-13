@@ -1,9 +1,14 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Configuration resolution is shared between sibling modules in this binary crate."
+)]
+
 use anyhow::Result;
 use app_config::{DlpConfig, load_dlp_config};
 
 use crate::args::Args;
 
-pub(crate) fn resolve_config(args: &Args) -> Result<DlpConfig> {
+pub(super) fn resolve_config(args: &Args) -> Result<DlpConfig> {
     let mut config = load_dlp_config()?;
 
     if let Some(api_scheme) = &args.api_scheme {

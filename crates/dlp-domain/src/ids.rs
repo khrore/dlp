@@ -6,24 +6,29 @@ use crate::errors::{DomainError, DomainResult};
 
 macro_rules! string_id {
     ($name:ident) => {
+        #[doc = concat!("Identifier value for `", stringify!($name), "`.")]
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(String);
 
         impl $name {
-            #[must_use]
-            pub fn new_unchecked(value: String) -> Self {
-                Self(value)
-            }
-
-            pub fn new(value: impl Into<String>) -> DomainResult<Self> {
-                let value = value.into();
-                if value.trim().is_empty() {
+            #[doc = concat!("Validates and stores a `", stringify!($name), "` value.")]
+            ///
+            /// # Errors
+            ///
+            /// Returns [`DomainError::EmptyValue`] when the provided identifier is blank.
+            pub fn new<Value>(value: Value) -> DomainResult<Self>
+            where
+                Value: Into<String>,
+            {
+                let identifier = value.into();
+                if identifier.trim().is_empty() {
                     return Err(DomainError::EmptyValue(stringify!($name)));
                 }
 
-                Ok(Self(value))
+                Ok(Self(identifier))
             }
 
+            #[doc = concat!("Returns the raw `", stringify!($name), "` string.")]
             #[must_use]
             pub fn as_str(&self) -> &str {
                 &self.0

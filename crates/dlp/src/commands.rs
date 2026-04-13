@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "The command runner is shared between sibling modules in this binary crate."
+)]
+
 use anyhow::Result;
 use dlp_api::{
     deployments::CreateDeploymentRequest,
@@ -12,7 +17,7 @@ use crate::{
     render::{format_deployment, format_replica, format_worker},
 };
 
-pub(crate) async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {
+pub(super) async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {
     match command {
         Command::Health => {
             let health = client.health_check().await?;

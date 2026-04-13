@@ -7,7 +7,6 @@ mod render;
 mod repl;
 
 use anyhow::Result;
-use clap::Parser;
 use dlp_client::DlpClient;
 use tokio::io::{self, AsyncWriteExt as _};
 
@@ -15,7 +14,7 @@ use crate::{args::Args, commands::execute_command, config::resolve_config, repl:
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = <Args as clap::Parser>::parse();
     let command = args.command.clone();
     let client = DlpClient::new(resolve_config(&args)?.api.base_url());
 
@@ -66,8 +65,7 @@ mod tests {
 
     #[test]
     fn rejects_unknown_interactive_commands() {
-        let error = parse_interactive_command("workers");
-        assert!(error.is_err());
+        parse_interactive_command("workers").unwrap_err();
     }
 
     #[test]

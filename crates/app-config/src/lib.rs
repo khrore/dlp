@@ -103,7 +103,7 @@ pub enum StorageBackend {
     Postgres,
 }
 
-/// PostgreSQL connection pool settings for the control plane.
+/// `PostgreSQL` connection pool settings for the control plane.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct PostgresPoolConfig {
@@ -128,7 +128,7 @@ impl Default for PostgresPoolConfig {
 pub struct ControlPlaneStorageConfig {
     /// Selected metadata backend.
     pub backend:      StorageBackend,
-    /// DSN-first PostgreSQL connection string.
+    /// DSN-first `PostgreSQL` connection string.
     pub database_url: Option<String>,
     /// Connection pool settings.
     pub pool:         PostgresPoolConfig,

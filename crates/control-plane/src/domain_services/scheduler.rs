@@ -1,8 +1,17 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Scheduler helpers are shared between sibling modules through a private parent module."
+)]
+#![expect(
+    unreachable_pub,
+    reason = "These helpers stay public within a private module tree for sibling access."
+)]
+
 use dlp_domain::{
     Lease, Worker, WorkerCapability, WorkloadRequirement,
 };
 
-pub(crate) fn capability_matches(
+pub fn capability_matches(
     capability: &WorkerCapability,
     requirement: &WorkloadRequirement,
 ) -> bool {
@@ -13,7 +22,7 @@ pub(crate) fn capability_matches(
         && capability.architecture_family() == requirement.architecture_family()
 }
 
-pub(crate) fn available_capacity_for_requirement(
+pub fn available_capacity_for_requirement(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[Lease],
@@ -45,7 +54,7 @@ pub(crate) fn available_capacity_for_requirement(
         })
 }
 
-pub(crate) fn worker_is_eligible(
+pub fn worker_is_eligible(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[Lease],

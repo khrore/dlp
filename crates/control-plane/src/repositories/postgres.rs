@@ -1,3 +1,28 @@
+#![expect(
+    unreachable_pub,
+    reason = "SeaORM derive models require public fields inside a private repository module tree."
+)]
+#![expect(
+    clippy::unused_trait_names,
+    reason = "Trait imports are used for method resolution against SeaORM types."
+)]
+#![expect(
+    clippy::shadow_reuse,
+    reason = "Validated identifiers and loaded records intentionally reuse domain names."
+)]
+#![expect(
+    clippy::absolute_paths,
+    reason = "A few fully qualified helper paths are clearer inside the repository adapter."
+)]
+#![expect(
+    clippy::map_err_ignore,
+    reason = "The database layer intentionally normalizes conversion errors into adapter-specific messages."
+)]
+#![expect(
+    clippy::arithmetic_side_effects,
+    reason = "The repository only performs bounded counter math on validated lengths and indexes."
+)]
+
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
@@ -5,16 +30,16 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    ArchitectureFamily, ArtifactRef, Deployment, DeploymentId, DeploymentStatusSummary,
-    DeviceClass, DomainResult, Framework, Lease, LeaseId, LeaseState, Replica, ReplicaId,
-    ReplicaState, RuntimeName, Worker, WorkerCapability, WorkerId, WorkerState, WorkloadMode,
-    WorkloadRequirement,
+    ArchitectureFamily, ArtifactRef, Deployment, DeploymentId, DeploymentStatusCounts,
+    DeploymentStatusSummary, DeviceClass, DomainResult, Framework, Lease, LeaseId, LeaseState,
+    Replica, ReplicaId, ReplicaState, RuntimeName, Worker, WorkerCapability,
+    WorkerCapabilitySpec, WorkerId, WorkerState, WorkloadMode, WorkloadProfile,
+    WorkloadRequirement, WorkloadRequirementSpec,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
     EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set, TransactionTrait,
 };
-use serde_json::Value;
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
 use crate::domain_services::scheduler::available_capacity_for_requirement;
@@ -69,18 +94,19 @@ mod ids {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PostgresStorage {
+pub struct PostgresStorage {
     db: DatabaseConnection,
 }
 
 impl PostgresStorage {
     #[must_use]
-    pub(crate) fn new(db: DatabaseConnection) -> Self {
+    pub const fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
+    #[expect(dead_code, reason = "Only tests and debugging helpers need direct database access.")]
     #[must_use]
-    pub(crate) fn connection(&self) -> &DatabaseConnection {
+    pub const fn connection(&self) -> &DatabaseConnection {
         &self.db
     }
 }
@@ -662,7 +688,7 @@ async fn recompute_deployment_summary(
         .into_iter()
         .map(replica_entity::Model::into_domain)
         .collect::<Result<Vec<_>>>()?;
-    let summary = DeploymentStatusSummary::from_replicas(replicas.iter());
+    let summary = DeploymentStatusSummary::from_replicas(&replicas);
     let existing = deployment::Entity::find_by_id(deployment_id.to_string())
         .one(txn)
         .await?
@@ -690,22 +716,24 @@ async fn recompute_worker_summary(txn: &DatabaseTransaction, worker_id: &WorkerI
         .filter_map(|capability| {
             available_capacity_for_requirement(
                 &worker,
-                &WorkloadRequirement::new(
-                    capability.framework().clone(),
-                    capability.mode().clone(),
-                    capability.device().clone(),
-                    capability.accelerator_runtime().clone(),
-                    capability.architecture_family().clone(),
+                &WorkloadRequirement::new(WorkloadRequirementSpec::new(
+                    WorkloadProfile::new(
+                        capability.framework().clone(),
+                        capability.mode().clone(),
+                        capability.device().clone(),
+                        capability.accelerator_runtime().clone(),
+                        capability.architecture_family().clone(),
+                    ),
                     0,
                     0,
-                ),
+                )),
                 &leases,
             )
             .map(|(slots, _)| slots)
         })
         .fold(0, u32::saturating_add);
     let mut active = worker_model.into_active_model();
-    active.assigned_replicas = Set(to_i32(leases.len() as u32)?);
+    active.assigned_replicas = Set(to_i32(u32::try_from(leases.len())?)?);
     active.available_slots = Set(to_i32(available_slots)?);
     active.updated_at = Set(Utc::now());
     active.update(txn).await?;
@@ -827,8 +855,7 @@ fn set_status_on_deployment(
     Ok(())
 }
 
-pub mod deployment {
-    use chrono::{DateTime, Utc};
+mod deployment {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -853,18 +880,21 @@ pub mod deployment {
         pub ready_replicas: i32,
         pub failed_replicas: i32,
         pub stopped_replicas: i32,
-        pub created_at: DateTime<Utc>,
-        pub updated_at: DateTime<Utc>,
+        pub created_at: DateTimeUtc,
+        pub updated_at: DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-pub mod replica_entity {
-    use chrono::{DateTime, Utc};
+mod replica_entity {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -877,18 +907,21 @@ pub mod replica_entity {
         pub assigned_worker_id: Option<String>,
         pub lease_id:           Option<String>,
         pub status_message:     Option<String>,
-        pub created_at:         DateTime<Utc>,
-        pub updated_at:         DateTime<Utc>,
+        pub created_at:         DateTimeUtc,
+        pub updated_at:         DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-pub mod lease_entity {
-    use chrono::{DateTime, Utc};
+mod lease_entity {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -907,18 +940,21 @@ pub mod lease_entity {
         pub architecture_family: String,
         pub memory_requirement_bytes: i64,
         pub concurrency_requirement: i32,
-        pub created_at: DateTime<Utc>,
-        pub updated_at: DateTime<Utc>,
+        pub created_at: DateTimeUtc,
+        pub updated_at: DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-pub mod worker_entity {
-    use chrono::{DateTime, Utc};
+mod worker_entity {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -930,19 +966,22 @@ pub mod worker_entity {
         pub state:             String,
         pub assigned_replicas: i32,
         pub available_slots:   i32,
-        pub last_heartbeat_at: DateTime<Utc>,
-        pub created_at:        DateTime<Utc>,
-        pub updated_at:        DateTime<Utc>,
+        pub last_heartbeat_at: DateTimeUtc,
+        pub created_at:        DateTimeUtc,
+        pub updated_at:        DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-pub mod worker_capability {
-    use chrono::{DateTime, Utc};
+mod worker_capability {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -958,17 +997,20 @@ pub mod worker_capability {
         pub architecture_family:    String,
         pub available_memory_bytes: i64,
         pub concurrency_slots:      i32,
-        pub created_at:             DateTime<Utc>,
+        pub created_at:             DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-pub mod worker_assignment {
-    use chrono::{DateTime, Utc};
+mod worker_assignment {
     use sea_orm::entity::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
@@ -981,12 +1023,16 @@ pub mod worker_assignment {
         pub lease_id:       String,
         pub payload:        Json,
         pub delivery_state: String,
-        pub created_at:     DateTime<Utc>,
+        pub created_at:     DateTimeUtc,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
     pub enum Relation {}
 
+    #[expect(
+        clippy::missing_trait_methods,
+        reason = "SeaORM provides suitable defaults for the generated active model hooks."
+    )]
     impl ActiveModelBehavior for ActiveModel {}
 }
 
@@ -1023,30 +1069,32 @@ impl deployment::ActiveModel {
 
 impl deployment::Model {
     fn into_domain(self) -> Result<Deployment> {
-        let requirement = WorkloadRequirement::new(
-            parse_framework(&self.framework)?,
-            parse_mode(&self.mode)?,
-            parse_device(&self.device)?,
-            RuntimeName::new(self.accelerator_runtime)?,
-            ArchitectureFamily::new(self.architecture_family)?,
+        let requirement = WorkloadRequirement::new(WorkloadRequirementSpec::new(
+            WorkloadProfile::new(
+                parse_framework(&self.framework)?,
+                parse_mode(&self.mode)?,
+                parse_device(&self.device)?,
+                RuntimeName::new(self.accelerator_runtime)?,
+                ArchitectureFamily::new(self.architecture_family)?,
+            ),
             u64::try_from(self.memory_requirement_bytes)?,
             u32::try_from(self.concurrency_requirement)?,
-        );
+        ));
         Ok(Deployment::rehydrate(
             DeploymentId::new(self.id)?,
             self.name,
             ArtifactRef::new(self.artifact_ref)?,
             u32::try_from(self.replicas_desired)?,
             requirement,
-            DeploymentStatusSummary::from_counts(
-                u32::try_from(self.pending_replicas)?,
-                u32::try_from(self.assigned_replicas)?,
-                u32::try_from(self.pulling_replicas)?,
-                u32::try_from(self.starting_replicas)?,
-                u32::try_from(self.ready_replicas)?,
-                u32::try_from(self.failed_replicas)?,
-                u32::try_from(self.stopped_replicas)?,
-            ),
+            DeploymentStatusSummary::from_counts(DeploymentStatusCounts {
+                pending: u32::try_from(self.pending_replicas)?,
+                assigned: u32::try_from(self.assigned_replicas)?,
+                pulling: u32::try_from(self.pulling_replicas)?,
+                starting: u32::try_from(self.starting_replicas)?,
+                ready: u32::try_from(self.ready_replicas)?,
+                failed: u32::try_from(self.failed_replicas)?,
+                stopped: u32::try_from(self.stopped_replicas)?,
+            }),
         ))
     }
 }
@@ -1107,15 +1155,17 @@ impl lease_entity::Model {
             WorkerId::new(self.worker_id)?,
             DeploymentId::new(self.deployment_id)?,
             ReplicaId::new(self.replica_id)?,
-            WorkloadRequirement::new(
-                parse_framework(&self.framework)?,
-                parse_mode(&self.mode)?,
-                parse_device(&self.device)?,
-                RuntimeName::new(self.accelerator_runtime)?,
-                ArchitectureFamily::new(self.architecture_family)?,
+            WorkloadRequirement::new(WorkloadRequirementSpec::new(
+                WorkloadProfile::new(
+                    parse_framework(&self.framework)?,
+                    parse_mode(&self.mode)?,
+                    parse_device(&self.device)?,
+                    RuntimeName::new(self.accelerator_runtime)?,
+                    ArchitectureFamily::new(self.architecture_family)?,
+                ),
                 u64::try_from(self.memory_requirement_bytes)?,
                 u32::try_from(self.concurrency_requirement)?,
-            ),
+            )),
             parse_lease_state(&self.state)?,
         ))
     }
@@ -1172,15 +1222,17 @@ impl worker_capability::ActiveModel {
 
 impl worker_capability::Model {
     fn into_domain(self) -> Result<WorkerCapability> {
-        Ok(WorkerCapability::new(
-            parse_framework(&self.framework)?,
-            parse_mode(&self.mode)?,
-            parse_device(&self.device)?,
-            RuntimeName::new(self.accelerator_runtime)?,
-            ArchitectureFamily::new(self.architecture_family)?,
+        Ok(WorkerCapability::new(WorkerCapabilitySpec::new(
+            WorkloadProfile::new(
+                parse_framework(&self.framework)?,
+                parse_mode(&self.mode)?,
+                parse_device(&self.device)?,
+                RuntimeName::new(self.accelerator_runtime)?,
+                ArchitectureFamily::new(self.architecture_family)?,
+            ),
             u64::try_from(self.available_memory_bytes)?,
             u32::try_from(self.concurrency_slots)?,
-        ))
+        )))
     }
 }
 
@@ -1197,7 +1249,7 @@ impl worker_assignment::ActiveModel {
             worker_id:      Set(worker_id.to_string()),
             replica_id:     Set(replica_id.to_string()),
             lease_id:       Set(lease_id.to_string()),
-            payload:        Set(Value::from(serde_json::to_value(payload)?)),
+            payload:        Set(serde_json::to_value(payload)?),
             delivery_state: Set("queued".to_owned()),
             created_at:     Set(now),
         })

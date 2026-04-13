@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "REPL helpers are shared between sibling modules in this binary crate."
+)]
+
 use anyhow::{Result, bail};
 use dlp_client::DlpClient;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
@@ -7,7 +12,7 @@ use crate::{
     commands::execute_command,
 };
 
-pub(crate) async fn run_repl(client: DlpClient) -> Result<()> {
+pub(super) async fn run_repl(client: DlpClient) -> Result<()> {
     let stdin = BufReader::new(io::stdin());
     let mut lines = stdin.lines();
     let mut stdout = io::stdout();
@@ -46,7 +51,7 @@ pub(crate) async fn run_repl(client: DlpClient) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
+pub(super) fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
     match input.trim() {
         "" => bail!("enter a command"),
         "health" => Ok(InteractiveCommand::Health),

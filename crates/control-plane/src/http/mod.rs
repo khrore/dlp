@@ -1,3 +1,8 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "HTTP router construction is shared between sibling modules through a private parent module."
+)]
+
 mod deployments;
 mod workers;
 
@@ -7,9 +12,9 @@ use axum::{
 };
 use dlp_api::health::StatusDto;
 
-use crate::application::SharedState;
+use crate::SharedState;
 
-pub(crate) fn router(state: SharedState) -> Router {
+pub(super) fn router(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/workers", get(workers::list_workers))

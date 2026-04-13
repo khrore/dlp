@@ -1,24 +1,29 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "These CLI model types are shared between sibling modules through a private parent module."
+)]
+
 use clap::{Args as ClapArgs, Parser, Subcommand};
 use dlp_api::shared::{DeviceClass, Framework, WorkloadMode};
 
 #[derive(Debug, Parser)]
 #[command(name = "dlp", about = "DLP client with shared CLI and REPL")]
-pub(crate) struct Args {
+pub(super) struct Args {
     #[arg(long, global = true)]
-    pub(crate) api_host: Option<String>,
+    pub api_host: Option<String>,
 
     #[arg(long, global = true)]
-    pub(crate) api_port: Option<u16>,
+    pub api_port: Option<u16>,
 
     #[arg(long, global = true)]
-    pub(crate) api_scheme: Option<String>,
+    pub api_scheme: Option<String>,
 
     #[command(subcommand)]
-    pub(crate) command: Option<Command>,
+    pub command: Option<Command>,
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(crate) enum Command {
+pub(super) enum Command {
     #[command(subcommand)]
     Deployments(DeploymentsCommand),
     Health,
@@ -29,67 +34,67 @@ pub(crate) enum Command {
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(crate) enum WorkersCommand {
+pub(super) enum WorkersCommand {
     List,
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(crate) enum DeploymentsCommand {
+pub(super) enum DeploymentsCommand {
     Get(GetDeploymentArgs),
     Submit(SubmitDeploymentArgs),
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(crate) enum ReplicasCommand {
+pub(super) enum ReplicasCommand {
     List(ListReplicasArgs),
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(crate) struct SubmitDeploymentArgs {
+pub(super) struct SubmitDeploymentArgs {
     #[arg(long)]
-    pub(crate) accelerator_runtime: String,
+    pub accelerator_runtime: String,
 
     #[arg(long)]
-    pub(crate) architecture_family: String,
+    pub architecture_family: String,
 
     #[arg(long)]
-    pub(crate) artifact_ref: String,
+    pub artifact_ref: String,
 
     #[arg(long)]
-    pub(crate) concurrency: u32,
+    pub concurrency: u32,
 
     #[arg(long)]
-    pub(crate) device: DeviceClass,
+    pub device: DeviceClass,
 
     #[arg(long)]
-    pub(crate) framework: Framework,
+    pub framework: Framework,
 
     #[arg(long)]
-    pub(crate) memory_bytes: u64,
+    pub memory_bytes: u64,
 
     #[arg(long)]
-    pub(crate) mode: WorkloadMode,
+    pub mode: WorkloadMode,
 
     #[arg(long)]
-    pub(crate) name: String,
+    pub name: String,
 
     #[arg(long)]
-    pub(crate) replicas: u32,
+    pub replicas: u32,
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(crate) struct GetDeploymentArgs {
-    pub(crate) deployment_id: String,
+pub(super) struct GetDeploymentArgs {
+    pub deployment_id: String,
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(crate) struct ListReplicasArgs {
+pub(super) struct ListReplicasArgs {
     #[arg(long)]
-    pub(crate) deployment_id: Option<String>,
+    pub deployment_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum InteractiveCommand {
+pub(super) enum InteractiveCommand {
     Exit,
     Health,
     Help,

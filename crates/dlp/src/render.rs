@@ -1,10 +1,15 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "Formatting helpers are shared between sibling modules in this binary crate."
+)]
+
 use dlp_api::{
     deployments::DeploymentDto,
     replicas::ReplicaDto,
     workers::WorkerDto,
 };
 
-pub(crate) fn format_deployment(deployment: &DeploymentDto) -> String {
+pub(super) fn format_deployment(deployment: &DeploymentDto) -> String {
     format!(
         "{} ({}) artifact={} desired={} pending={} assigned={} pulling={} starting={} ready={} \
          failed={} stopped={}",
@@ -22,7 +27,7 @@ pub(crate) fn format_deployment(deployment: &DeploymentDto) -> String {
     )
 }
 
-pub(crate) fn format_replica(replica: ReplicaDto) -> String {
+pub(super) fn format_replica(replica: ReplicaDto) -> String {
     let worker = replica.worker_id.unwrap_or_else(|| "unassigned".to_owned());
     let lease = replica.lease_id.unwrap_or_else(|| "none".to_owned());
     let message = replica
@@ -35,7 +40,7 @@ pub(crate) fn format_replica(replica: ReplicaDto) -> String {
     )
 }
 
-pub(crate) fn format_worker(worker: WorkerDto) -> String {
+pub(super) fn format_worker(worker: WorkerDto) -> String {
     let capabilities = worker
         .capabilities
         .into_iter()

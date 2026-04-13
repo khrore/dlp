@@ -9,12 +9,17 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
 #[strum(serialize_all = "snake_case")]
+/// Lifecycle state for a worker lease.
 pub enum LeaseState {
+    /// The lease is currently active.
     Active,
+    /// The lease expired without a clean shutdown.
     Expired,
+    /// The lease was explicitly released.
     Released,
 }
 
+/// Assignment of one replica to one worker.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lease {
     id:            LeaseId,
@@ -26,8 +31,9 @@ pub struct Lease {
 }
 
 impl Lease {
+    /// Creates a new active lease.
     #[must_use]
-    pub fn new(
+    pub const fn new(
         id: LeaseId,
         worker_id: WorkerId,
         deployment_id: DeploymentId,
@@ -44,46 +50,55 @@ impl Lease {
         }
     }
 
+    /// Returns the lease identifier.
     #[must_use]
-    pub fn id(&self) -> &LeaseId {
+    pub const fn id(&self) -> &LeaseId {
         &self.id
     }
 
+    /// Returns the owning worker identifier.
     #[must_use]
-    pub fn worker_id(&self) -> &WorkerId {
+    pub const fn worker_id(&self) -> &WorkerId {
         &self.worker_id
     }
 
+    /// Returns the deployment identifier for this lease.
     #[must_use]
-    pub fn deployment_id(&self) -> &DeploymentId {
+    pub const fn deployment_id(&self) -> &DeploymentId {
         &self.deployment_id
     }
 
+    /// Returns the replica identifier for this lease.
     #[must_use]
-    pub fn replica_id(&self) -> &ReplicaId {
+    pub const fn replica_id(&self) -> &ReplicaId {
         &self.replica_id
     }
 
+    /// Returns the workload requirement held by this lease.
     #[must_use]
-    pub fn requirement(&self) -> &WorkloadRequirement {
+    pub const fn requirement(&self) -> &WorkloadRequirement {
         &self.requirement
     }
 
+    /// Returns the current lease state.
     #[must_use]
-    pub fn state(&self) -> &LeaseState {
+    pub const fn state(&self) -> &LeaseState {
         &self.state
     }
 
-    pub fn expire(&mut self) {
+    /// Marks the lease as expired.
+    pub const fn expire(&mut self) {
         self.state = LeaseState::Expired;
     }
 
-    pub fn release(&mut self) {
+    /// Marks the lease as released.
+    pub const fn release(&mut self) {
         self.state = LeaseState::Released;
     }
 
+    /// Reconstructs a lease from persisted state.
     #[must_use]
-    pub fn rehydrate(
+    pub const fn rehydrate(
         id: LeaseId,
         worker_id: WorkerId,
         deployment_id: DeploymentId,

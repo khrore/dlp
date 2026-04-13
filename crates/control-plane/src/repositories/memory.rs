@@ -1,3 +1,16 @@
+#![expect(
+    clippy::significant_drop_tightening,
+    reason = "Mutex guard scopes are intentionally explicit around storage mutations."
+)]
+#![expect(
+    clippy::manual_let_else,
+    reason = "The current shape keeps the in-memory repository branches easier to scan."
+)]
+#![expect(
+    clippy::collapsible_if,
+    reason = "The nested branch documents the exceptional path more clearly in this adapter."
+)]
+
 use std::{
     collections::{BTreeMap, VecDeque},
     sync::Arc,
@@ -16,7 +29,7 @@ use tokio::sync::Mutex;
 use super::{StorageBackend, UpdateReplicaStatusResult};
 
 #[derive(Debug, Clone)]
-pub(crate) struct MemoryStorage {
+pub struct MemoryStorage {
     inner: Arc<Mutex<MemoryState>>,
 }
 
@@ -38,7 +51,7 @@ struct MemoryState {
 
 impl MemoryStorage {
     #[must_use]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(MemoryState {
                 deployments: BTreeMap::new(),

@@ -1,8 +1,19 @@
-#![allow(elided_lifetimes_in_paths)]
+#![expect(
+    elided_lifetimes_in_paths,
+    reason = "SeaORM migration trait signatures rely on elided lifetime paths in generated types."
+)]
+#![expect(
+    clippy::missing_trait_methods,
+    reason = "The migration framework supplies suitable defaults for the remaining trait methods."
+)]
+#![expect(
+    clippy::too_many_lines,
+    reason = "The schema migration is intentionally kept as one linear definition."
+)]
 
 use sea_orm_migration::prelude::*;
 
-pub(crate) struct Migrator;
+pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
@@ -26,11 +37,11 @@ mod m20260410_000001_create_storage_schema {
             manager
                 .get_connection()
                 .execute_unprepared(
-                    r#"
+                    "
                     CREATE SEQUENCE IF NOT EXISTS deployment_id_seq START WITH 1 INCREMENT BY 1;
                     CREATE SEQUENCE IF NOT EXISTS replica_id_seq START WITH 1 INCREMENT BY 1;
                     CREATE SEQUENCE IF NOT EXISTS lease_id_seq START WITH 1 INCREMENT BY 1;
-                    "#,
+                    ",
                 )
                 .await?;
 
@@ -475,11 +486,11 @@ mod m20260410_000001_create_storage_schema {
                 // PostgreSQL sequence DDL is backend-specific and clearer here than forcing it
                 // through a partial abstraction, so migrations keep this raw SQL narrowly scoped.
                 .execute_unprepared(
-                    r#"
+                    "
                     DROP SEQUENCE IF EXISTS deployment_id_seq;
                     DROP SEQUENCE IF EXISTS replica_id_seq;
                     DROP SEQUENCE IF EXISTS lease_id_seq;
-                    "#,
+                    ",
                 )
                 .await?;
 
