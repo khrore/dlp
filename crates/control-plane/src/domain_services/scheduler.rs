@@ -1,15 +1,9 @@
 #![expect(
-    clippy::redundant_pub_crate,
-    reason = "Scheduler helpers are shared between sibling modules through a private parent module."
-)]
-#![expect(
     unreachable_pub,
     reason = "These helpers stay public within a private module tree for sibling access."
 )]
 
-use dlp_domain::{
-    Lease, Worker, WorkerCapability, WorkloadRequirement,
-};
+use dlp_domain::{Lease, Worker, WorkerCapability, WorkloadRequirement};
 
 pub fn capability_matches(
     capability: &WorkerCapability,

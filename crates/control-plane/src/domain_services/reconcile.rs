@@ -1,8 +1,4 @@
 #![expect(
-    clippy::redundant_pub_crate,
-    reason = "Reconcile constants are shared between sibling modules through a private parent module."
-)]
-#![expect(
     unreachable_pub,
     reason = "These constants stay public within a private module tree for sibling access."
 )]

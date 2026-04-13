@@ -1,21 +1,17 @@
 #![expect(
-    clippy::redundant_pub_crate,
-    reason = "Repository interfaces are shared between sibling modules through a private parent module."
-)]
-#![expect(
     unreachable_pub,
-    reason = "Repository types are re-exported within a private module tree for sibling access."
+    reason = "Repository interfaces are shared between sibling modules through a private parent \
+              module."
 )]
 #![expect(
     dead_code,
-    reason = "Several repository hooks are kept for parity between adapters even if not all are exercised yet."
+    reason = "Several repository hooks are kept for parity between adapters even if not all are \
+              exercised yet."
 )]
 
 mod memory;
 mod migration;
 mod postgres;
-
-pub use self::{memory::MemoryStorage, migration::Migrator, postgres::PostgresStorage};
 
 use std::time::Duration;
 
@@ -27,15 +23,17 @@ use dlp_domain::{
     Worker, WorkerId, WorkerState,
 };
 
+pub use self::{memory::MemoryStorage, migration::Migrator, postgres::PostgresStorage};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum UpdateReplicaStatusResult {
+pub enum UpdateReplicaStatusResult {
     LeaseConflict(String),
     Success(Replica),
     UnknownReplica,
 }
 
 #[async_trait]
-pub(super) trait StorageBackend: Send + Sync {
+pub trait StorageBackend: Send + Sync {
     async fn next_deployment_id(&self) -> Result<String>;
     async fn next_replica_id(&self) -> Result<String>;
     async fn next_lease_id(&self) -> Result<String>;
@@ -106,7 +104,10 @@ pub(super) trait StorageBackend: Send + Sync {
     ) -> Result<bool>;
 }
 
-#[expect(dead_code, reason = "Reserved helper for future repository transition validation.")]
+#[expect(
+    dead_code,
+    reason = "Reserved helper for future repository transition validation."
+)]
 fn invalid_state_transition(
     entity: &'static str,
     from: &impl ToString,

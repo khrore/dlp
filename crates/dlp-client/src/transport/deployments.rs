@@ -8,7 +8,8 @@ use crate::ClientError;
 /// Deployment endpoints exposed by the API client.
 #[expect(
     async_fn_in_trait,
-    reason = "These traits are consumed internally by this workspace and do not need Send future guarantees."
+    reason = "These traits are consumed internally by this workspace and do not need Send future \
+              guarantees."
 )]
 pub trait Client {
     /// Creates a deployment.

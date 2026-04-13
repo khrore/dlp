@@ -14,11 +14,7 @@ use dlp_api::workers::{
 };
 use dlp_domain::{DomainError, WorkerId};
 
-use crate::{
-    application::ControlPlaneService,
-    mappers,
-    SharedState,
-};
+use crate::{SharedState, application::ControlPlaneService, mappers};
 
 pub(super) async fn register_worker(
     State(state): State<SharedState>,
@@ -84,7 +80,8 @@ fn internal_error(error: &impl ToString) -> (StatusCode, String) {
 
 #[expect(
     clippy::needless_pass_by_value,
-    reason = "The handler receives the owned anyhow error from map_err and inspects it before rendering."
+    reason = "The handler receives the owned anyhow error from map_err and inspects it before \
+              rendering."
 )]
 fn map_error(error: anyhow::Error) -> (StatusCode, String) {
     if let Some(domain_error) = error.downcast_ref::<DomainError>() {

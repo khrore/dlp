@@ -11,19 +11,19 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DeploymentStatusCounts {
     /// Replicas waiting to be assigned.
-    pub pending: u32,
+    pub pending:  u32,
     /// Replicas assigned to a worker lease.
     pub assigned: u32,
     /// Replicas pulling runtime artifacts.
-    pub pulling: u32,
+    pub pulling:  u32,
     /// Replicas starting the runtime.
     pub starting: u32,
     /// Replicas ready to serve work.
-    pub ready: u32,
+    pub ready:    u32,
     /// Replicas that failed during startup or execution.
-    pub failed: u32,
+    pub failed:   u32,
     /// Replicas stopped by the control plane.
-    pub stopped: u32,
+    pub stopped:  u32,
 }
 
 /// Aggregated replica status summary for a deployment.
@@ -98,47 +98,45 @@ impl DeploymentStatusSummary {
     /// Builds a status summary by scanning the provided replicas.
     #[must_use]
     pub fn from_replicas(replicas: &[Replica]) -> Self {
-        replicas
-            .iter()
-            .fold(Self::new(), |mut summary, replica| {
-                match replica.state() {
-                    ReplicaState::Pending => {
-                        summary.pending = summary.pending.saturating_add(1);
-                    }
-                    ReplicaState::Assigned => {
-                        summary.assigned = summary.assigned.saturating_add(1);
-                    }
-                    ReplicaState::Pulling => {
-                        summary.pulling = summary.pulling.saturating_add(1);
-                    }
-                    ReplicaState::Starting => {
-                        summary.starting = summary.starting.saturating_add(1);
-                    }
-                    ReplicaState::Ready => {
-                        summary.ready = summary.ready.saturating_add(1);
-                    }
-                    ReplicaState::Failed => {
-                        summary.failed = summary.failed.saturating_add(1);
-                    }
-                    ReplicaState::Stopped => {
-                        summary.stopped = summary.stopped.saturating_add(1);
-                    }
+        replicas.iter().fold(Self::new(), |mut summary, replica| {
+            match replica.state() {
+                ReplicaState::Pending => {
+                    summary.pending = summary.pending.saturating_add(1);
                 }
-                summary
-            })
+                ReplicaState::Assigned => {
+                    summary.assigned = summary.assigned.saturating_add(1);
+                }
+                ReplicaState::Pulling => {
+                    summary.pulling = summary.pulling.saturating_add(1);
+                }
+                ReplicaState::Starting => {
+                    summary.starting = summary.starting.saturating_add(1);
+                }
+                ReplicaState::Ready => {
+                    summary.ready = summary.ready.saturating_add(1);
+                }
+                ReplicaState::Failed => {
+                    summary.failed = summary.failed.saturating_add(1);
+                }
+                ReplicaState::Stopped => {
+                    summary.stopped = summary.stopped.saturating_add(1);
+                }
+            }
+            summary
+        })
     }
 
     /// Builds a status summary from precomputed counts.
     #[must_use]
     pub const fn from_counts(counts: DeploymentStatusCounts) -> Self {
         Self {
-            pending: counts.pending,
+            pending:  counts.pending,
             assigned: counts.assigned,
-            pulling: counts.pulling,
+            pulling:  counts.pulling,
             starting: counts.starting,
-            ready: counts.ready,
-            failed: counts.failed,
-            stopped: counts.stopped,
+            ready:    counts.ready,
+            failed:   counts.failed,
+            stopped:  counts.stopped,
         }
     }
 }
@@ -251,8 +249,8 @@ mod tests {
         ids::{DeploymentId, ReplicaId},
         replicas::{Replica, ReplicaState},
         requirements::{
-            ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkloadMode,
-            WorkloadProfile, WorkloadRequirement, WorkloadRequirementSpec,
+            ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkloadMode, WorkloadProfile,
+            WorkloadRequirement, WorkloadRequirementSpec,
         },
     };
 

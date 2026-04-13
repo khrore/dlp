@@ -14,7 +14,6 @@ macro_rules! domain_string {
 
         impl $name {
             #[doc = concat!("Validates and stores a `", $field, "` value.")]
-            ///
             /// # Errors
             ///
             /// Returns [`DomainError::EmptyValue`] when the provided value is blank.
@@ -87,13 +86,14 @@ domain_string!(ArchitectureFamily, "architecture_family");
 pub struct WorkloadProfile {
     accelerator_runtime: RuntimeName,
     architecture_family: ArchitectureFamily,
-    device: DeviceClass,
-    framework: Framework,
-    mode: WorkloadMode,
+    device:              DeviceClass,
+    framework:           Framework,
+    mode:                WorkloadMode,
 }
 
 impl WorkloadProfile {
-    /// Creates a workload profile describing the runtime, architecture, and framework.
+    /// Creates a workload profile describing the runtime, architecture, and
+    /// framework.
     #[must_use]
     pub const fn new(
         framework: Framework,
@@ -146,8 +146,8 @@ impl WorkloadProfile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkerCapabilitySpec {
     available_memory_bytes: u64,
-    concurrency_slots: u32,
-    profile: WorkloadProfile,
+    concurrency_slots:      u32,
+    profile:                WorkloadProfile,
 }
 
 impl WorkerCapabilitySpec {
@@ -187,9 +187,9 @@ impl WorkerCapabilitySpec {
 /// Constructor input for a [`WorkloadRequirement`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkloadRequirementSpec {
-    concurrency_requirement: u32,
+    concurrency_requirement:  u32,
     memory_requirement_bytes: u64,
-    profile: WorkloadProfile,
+    profile:                  WorkloadProfile,
 }
 
 impl WorkloadRequirementSpec {
@@ -243,13 +243,13 @@ impl WorkerCapability {
     #[must_use]
     pub fn new(spec: WorkerCapabilitySpec) -> Self {
         Self {
-            accelerator_runtime: spec.profile.accelerator_runtime,
-            architecture_family: spec.profile.architecture_family,
+            accelerator_runtime:    spec.profile.accelerator_runtime,
+            architecture_family:    spec.profile.architecture_family,
             available_memory_bytes: spec.available_memory_bytes,
-            concurrency_slots: spec.concurrency_slots,
-            device: spec.profile.device,
-            framework: spec.profile.framework,
-            mode: spec.profile.mode,
+            concurrency_slots:      spec.concurrency_slots,
+            device:                 spec.profile.device,
+            framework:              spec.profile.framework,
+            mode:                   spec.profile.mode,
         }
     }
 
@@ -313,13 +313,13 @@ impl WorkloadRequirement {
     #[must_use]
     pub fn new(spec: WorkloadRequirementSpec) -> Self {
         Self {
-            accelerator_runtime: spec.profile.accelerator_runtime,
-            architecture_family: spec.profile.architecture_family,
-            concurrency_requirement: spec.concurrency_requirement,
-            device: spec.profile.device,
-            framework: spec.profile.framework,
+            accelerator_runtime:      spec.profile.accelerator_runtime,
+            architecture_family:      spec.profile.architecture_family,
+            concurrency_requirement:  spec.concurrency_requirement,
+            device:                   spec.profile.device,
+            framework:                spec.profile.framework,
             memory_requirement_bytes: spec.memory_requirement_bytes,
-            mode: spec.profile.mode,
+            mode:                     spec.profile.mode,
         }
     }
 

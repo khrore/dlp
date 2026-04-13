@@ -13,7 +13,8 @@ impl ArtifactRef {
     ///
     /// # Errors
     ///
-    /// Returns [`DomainError::EmptyValue`] when the provided reference is blank.
+    /// Returns [`DomainError::EmptyValue`] when the provided reference is
+    /// blank.
     pub fn new<Value>(value: Value) -> DomainResult<Self>
     where
         Value: Into<String>,

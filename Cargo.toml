@@ -158,6 +158,9 @@ nursery = { level = "deny", priority = -1 }
 
 # Custom Clippy rule configuration
 
+# Keep redundant visibility within private module trees out of the workspace.
+redundant_pub_crate = { level = "deny" }
+
 # Nursery group
 #
 # Prefer functional style over imperative style when working with `Option`

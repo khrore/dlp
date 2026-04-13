@@ -9,8 +9,7 @@ mod replicas;
 mod workers;
 
 pub use self::{
-    deployments::Client as DeploymentsClient,
-    replicas::Client as ReplicasClient,
+    deployments::Client as DeploymentsClient, replicas::Client as ReplicasClient,
     workers::Client as WorkersClient,
 };
 

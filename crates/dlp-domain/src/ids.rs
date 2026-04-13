@@ -12,10 +12,10 @@ macro_rules! string_id {
 
         impl $name {
             #[doc = concat!("Validates and stores a `", stringify!($name), "` value.")]
-            ///
             /// # Errors
             ///
-            /// Returns [`DomainError::EmptyValue`] when the provided identifier is blank.
+            /// Returns [`DomainError::EmptyValue`] when the provided identifier is
+            /// blank.
             pub fn new<Value>(value: Value) -> DomainResult<Self>
             where
                 Value: Into<String>,

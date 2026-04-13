@@ -1,5 +1,5 @@
 #![expect(
-    clippy::redundant_pub_crate,
+    unreachable_pub,
     reason = "REPL helpers are shared between sibling modules in this binary crate."
 )]
 
@@ -12,7 +12,7 @@ use crate::{
     commands::execute_command,
 };
 
-pub(super) async fn run_repl(client: DlpClient) -> Result<()> {
+pub async fn run_repl(client: DlpClient) -> Result<()> {
     let stdin = BufReader::new(io::stdin());
     let mut lines = stdin.lines();
     let mut stdout = io::stdout();
@@ -51,7 +51,7 @@ pub(super) async fn run_repl(client: DlpClient) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
+pub fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
     match input.trim() {
         "" => bail!("enter a command"),
         "health" => Ok(InteractiveCommand::Health),

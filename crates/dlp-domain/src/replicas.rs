@@ -92,7 +92,8 @@ impl Replica {
     ///
     /// # Errors
     ///
-    /// Returns [`DomainError::InvalidStateTransition`] when the replica is not pending.
+    /// Returns [`DomainError::InvalidStateTransition`] when the replica is not
+    /// pending.
     pub fn assign(&mut self, worker_id: WorkerId, lease_id: LeaseId) -> DomainResult<()> {
         if self.state != ReplicaState::Pending {
             return Err(DomainError::InvalidStateTransition {
@@ -113,8 +114,8 @@ impl Replica {
     ///
     /// # Errors
     ///
-    /// Returns [`DomainError::InvalidStateTransition`] when the requested state change is not
-    /// allowed from the current replica state.
+    /// Returns [`DomainError::InvalidStateTransition`] when the requested state
+    /// change is not allowed from the current replica state.
     pub fn update_status(
         &mut self,
         state: ReplicaState,
@@ -123,9 +124,18 @@ impl Replica {
         let is_valid = matches!(
             (&self.state, &state),
             (ReplicaState::Pending, ReplicaState::Assigned)
-                | (ReplicaState::Assigned, ReplicaState::Pulling | ReplicaState::Failed)
-                | (ReplicaState::Pulling, ReplicaState::Starting | ReplicaState::Failed)
-                | (ReplicaState::Starting, ReplicaState::Ready | ReplicaState::Failed)
+                | (
+                    ReplicaState::Assigned,
+                    ReplicaState::Pulling | ReplicaState::Failed
+                )
+                | (
+                    ReplicaState::Pulling,
+                    ReplicaState::Starting | ReplicaState::Failed
+                )
+                | (
+                    ReplicaState::Starting,
+                    ReplicaState::Ready | ReplicaState::Failed
+                )
                 | (ReplicaState::Ready, ReplicaState::Failed)
                 | (_, ReplicaState::Stopped)
         ) || self.state == state;

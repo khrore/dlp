@@ -17,7 +17,7 @@ pub use leases::{Lease, LeaseState};
 pub use replicas::{Replica, ReplicaState};
 pub use requirements::{
     ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkerCapability,
-    WorkerCapabilitySpec, WorkloadProfile, WorkloadMode, WorkloadRequirement,
+    WorkerCapabilitySpec, WorkloadMode, WorkloadProfile, WorkloadRequirement,
     WorkloadRequirementSpec,
 };
 pub use workers::{Worker, WorkerState};

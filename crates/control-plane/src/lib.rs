@@ -6,8 +6,10 @@ mod http;
 mod mappers;
 mod repositories;
 
-use std::sync::Arc;
-use std::fmt::{Debug, Formatter, Result as FmtResult};
+use std::{
+    fmt::{Debug, Formatter, Result as FmtResult},
+    sync::Arc,
+};
 
 use anyhow::{Result, anyhow};
 use app_config as _;
@@ -50,8 +52,8 @@ pub fn new_shared_state() -> SharedState {
 ///
 /// # Errors
 ///
-/// Returns an error when the configured database connection cannot be established or when
-/// migrations fail.
+/// Returns an error when the configured database connection cannot be
+/// established or when migrations fail.
 pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result<SharedState> {
     let storage: Arc<dyn RuntimeStorageBackend> = match config.storage.backend {
         ConfigStorageBackend::Memory => Arc::new(MemoryStorage::new()),
@@ -78,7 +80,11 @@ pub fn spawn_reconcile_loop(state: SharedState) {
 
         loop {
             ticker.tick().await;
-            drop(ControlPlaneService::new(state.clone()).reconcile_once().await);
+            drop(
+                ControlPlaneService::new(state.clone())
+                    .reconcile_once()
+                    .await,
+            );
         }
     });
 }
@@ -144,9 +150,7 @@ mod tests {
         }
     }
 
-    fn first_assignment(
-        response: Option<WorkerHeartbeatResponse>,
-    ) -> Option<WorkerAssignmentDto> {
+    fn first_assignment(response: Option<WorkerHeartbeatResponse>) -> Option<WorkerAssignmentDto> {
         response?.assignments.into_iter().next()
     }
 

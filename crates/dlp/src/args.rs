@@ -1,6 +1,6 @@
 #![expect(
-    clippy::redundant_pub_crate,
-    reason = "These CLI model types are shared between sibling modules through a private parent module."
+    unreachable_pub,
+    reason = "These CLI model types are shared between sibling modules in this binary crate."
 )]
 
 use clap::{Args as ClapArgs, Parser, Subcommand};
@@ -8,7 +8,7 @@ use dlp_api::shared::{DeviceClass, Framework, WorkloadMode};
 
 #[derive(Debug, Parser)]
 #[command(name = "dlp", about = "DLP client with shared CLI and REPL")]
-pub(super) struct Args {
+pub struct Args {
     #[arg(long, global = true)]
     pub api_host: Option<String>,
 
@@ -23,7 +23,7 @@ pub(super) struct Args {
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(super) enum Command {
+pub enum Command {
     #[command(subcommand)]
     Deployments(DeploymentsCommand),
     Health,
@@ -34,23 +34,23 @@ pub(super) enum Command {
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(super) enum WorkersCommand {
+pub enum WorkersCommand {
     List,
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(super) enum DeploymentsCommand {
+pub enum DeploymentsCommand {
     Get(GetDeploymentArgs),
     Submit(SubmitDeploymentArgs),
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub(super) enum ReplicasCommand {
+pub enum ReplicasCommand {
     List(ListReplicasArgs),
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(super) struct SubmitDeploymentArgs {
+pub struct SubmitDeploymentArgs {
     #[arg(long)]
     pub accelerator_runtime: String,
 
@@ -83,18 +83,18 @@ pub(super) struct SubmitDeploymentArgs {
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(super) struct GetDeploymentArgs {
+pub struct GetDeploymentArgs {
     pub deployment_id: String,
 }
 
 #[derive(Debug, Clone, ClapArgs)]
-pub(super) struct ListReplicasArgs {
+pub struct ListReplicasArgs {
     #[arg(long)]
     pub deployment_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum InteractiveCommand {
+pub enum InteractiveCommand {
     Exit,
     Health,
     Help,

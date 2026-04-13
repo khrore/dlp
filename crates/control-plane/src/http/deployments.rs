@@ -16,9 +16,9 @@ use dlp_domain::{DeploymentId, DomainError, ReplicaId};
 use serde::Deserialize;
 
 use crate::{
+    SharedState,
     application::{ControlPlaneService, UpdateReplicaStatusError},
     mappers,
-    SharedState,
 };
 
 #[derive(Debug, Deserialize)]
@@ -48,7 +48,8 @@ pub(super) async fn get_deployment(
     State(state): State<SharedState>,
     Path(deployment_id): Path<String>,
 ) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
-    let deployment_id = DeploymentId::new(deployment_id).map_err(|error| invalid_request(&error))?;
+    let deployment_id =
+        DeploymentId::new(deployment_id).map_err(|error| invalid_request(&error))?;
     let service = ControlPlaneService::new(state);
     let (deployment, replicas) = service
         .get_deployment(&deployment_id)
@@ -121,7 +122,8 @@ fn internal_error(error: &impl ToString) -> (StatusCode, String) {
 
 #[expect(
     clippy::needless_pass_by_value,
-    reason = "The handler receives the owned anyhow error from map_err and inspects it before rendering."
+    reason = "The handler receives the owned anyhow error from map_err and inspects it before \
+              rendering."
 )]
 fn map_error(error: anyhow::Error) -> (StatusCode, String) {
     if let Some(domain_error) = error.downcast_ref::<DomainError>() {

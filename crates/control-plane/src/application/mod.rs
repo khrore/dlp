@@ -1,6 +1,7 @@
 #![expect(
-    clippy::redundant_pub_crate,
-    reason = "These orchestration types are shared between sibling modules through a private parent module."
+    unreachable_pub,
+    reason = "These orchestration types are shared between sibling modules through a private \
+              parent module."
 )]
 #![expect(
     clippy::shadow_unrelated,
@@ -16,25 +17,26 @@ use dlp_api::{
 };
 use dlp_domain::{
     Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState, WorkloadProfile, WorkloadRequirement,
-    WorkloadRequirementSpec,
+    Worker, WorkerId, WorkerState, WorkloadProfile, WorkloadRequirement, WorkloadRequirementSpec,
 };
 
 use crate::{
-    domain_services::reconcile::DEFAULT_WORKER_LOST_TIMEOUT,
-    domain_services::scheduler::{available_capacity_for_requirement, worker_is_eligible},
+    SharedState,
+    domain_services::{
+        reconcile::DEFAULT_WORKER_LOST_TIMEOUT,
+        scheduler::{available_capacity_for_requirement, worker_is_eligible},
+    },
     mappers,
     repositories::UpdateReplicaStatusResult,
-    SharedState,
 };
 
 #[derive(Clone)]
-pub(super) struct ControlPlaneService {
+pub struct ControlPlaneService {
     state: SharedState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum UpdateReplicaStatusError {
+pub enum UpdateReplicaStatusError {
     LeaseConflict(String),
     UnknownReplica,
 }
@@ -300,10 +302,7 @@ impl ControlPlaneService {
         Ok(())
     }
 
-    async fn select_worker(
-        &self,
-        requirement: &WorkloadRequirement,
-    ) -> Result<Option<WorkerId>> {
+    async fn select_worker(&self, requirement: &WorkloadRequirement) -> Result<Option<WorkerId>> {
         for worker in self.state.0.ready_workers().await? {
             let leases = self.state.0.active_leases_for_worker(worker.id()).await?;
             if worker_is_eligible(&worker, requirement, &leases) {

@@ -19,9 +19,7 @@ use dlp_api::{
         WorkerState,
     },
 };
-use dlp_client::{
-    DlpClient, ReplicasClient as _, WorkersClient as _,
-};
+use dlp_client::{DlpClient, ReplicasClient as _, WorkersClient as _};
 use tokio::{
     sync::Mutex,
     time::{MissedTickBehavior, interval, sleep},

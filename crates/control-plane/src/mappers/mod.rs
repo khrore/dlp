@@ -1,5 +1,5 @@
 #![expect(
-    clippy::redundant_pub_crate,
+    unreachable_pub,
     reason = "Mapper functions are shared between sibling modules through a private parent module."
 )]
 #![expect(
@@ -8,7 +8,8 @@
 )]
 #![expect(
     clippy::needless_pass_by_value,
-    reason = "DTO and enum mapping helpers intentionally consume owned values from request/ORM layers."
+    reason = "DTO and enum mapping helpers intentionally consume owned values from request/ORM \
+              layers."
 )]
 
 use dlp_api::{
@@ -27,7 +28,7 @@ use dlp_domain::{
     WorkloadRequirementSpec,
 };
 
-pub(super) fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
+pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     DeploymentDto {
         artifact_ref:     deployment.artifact_ref().to_string(),
         id:               deployment.id().to_string(),
@@ -38,9 +39,7 @@ pub(super) fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     }
 }
 
-pub(super) fn deployment_status_to_dto(
-    status: &DeploymentStatusSummary,
-) -> DeploymentStatusSummaryDto {
+pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentStatusSummaryDto {
     DeploymentStatusSummaryDto {
         assigned_replicas: status.assigned_replicas(),
         failed_replicas:   status.failed_replicas(),
@@ -52,7 +51,7 @@ pub(super) fn deployment_status_to_dto(
     }
 }
 
-pub(super) fn replica_to_dto(replica: &Replica) -> ReplicaDto {
+pub fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     ReplicaDto {
         deployment_id:  replica.deployment_id().to_string(),
         id:             replica.id().to_string(),
@@ -63,7 +62,7 @@ pub(super) fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     }
 }
 
-pub(super) fn worker_to_dto(worker: &Worker) -> WorkerDto {
+pub fn worker_to_dto(worker: &Worker) -> WorkerDto {
     WorkerDto {
         assigned_replicas: worker.assigned_replicas(),
         available_slots:   worker.available_slots(),
@@ -78,7 +77,7 @@ pub(super) fn worker_to_dto(worker: &Worker) -> WorkerDto {
     }
 }
 
-pub(super) fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
+pub fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
     WorkerCapabilityDto {
         accelerator_runtime:    capability.accelerator_runtime().to_string(),
         architecture_family:    capability.architecture_family().to_string(),
@@ -90,7 +89,7 @@ pub(super) fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabili
     }
 }
 
-pub(super) fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirementDto {
+pub fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirementDto {
     WorkloadRequirementDto {
         accelerator_runtime:      requirement.accelerator_runtime().to_string(),
         architecture_family:      requirement.architecture_family().to_string(),
@@ -102,7 +101,7 @@ pub(super) fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadR
     }
 }
 
-pub(super) fn assignment_to_dto(
+pub fn assignment_to_dto(
     deployment: &Deployment,
     lease: &Lease,
     replica: &Replica,
@@ -117,9 +116,7 @@ pub(super) fn assignment_to_dto(
     }
 }
 
-pub(super) fn requirement_from_dto(
-    dto: WorkloadRequirementDto,
-) -> DomainResult<WorkloadRequirement> {
+pub fn requirement_from_dto(dto: WorkloadRequirementDto) -> DomainResult<WorkloadRequirement> {
     Ok(WorkloadRequirement::new(WorkloadRequirementSpec::new(
         WorkloadProfile::new(
             framework_from_dto(dto.framework),
@@ -133,9 +130,7 @@ pub(super) fn requirement_from_dto(
     )))
 }
 
-pub(super) fn capability_from_dto(
-    dto: WorkerCapabilityDto,
-) -> DomainResult<WorkerCapability> {
+pub fn capability_from_dto(dto: WorkerCapabilityDto) -> DomainResult<WorkerCapability> {
     Ok(WorkerCapability::new(WorkerCapabilitySpec::new(
         WorkloadProfile::new(
             framework_from_dto(dto.framework),
@@ -149,11 +144,11 @@ pub(super) fn capability_from_dto(
     )))
 }
 
-pub(super) fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
+pub fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
     ArtifactRef::new(value)
 }
 
-pub(super) fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
+pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     match state {
         ReplicaStateDto::Assigned => ReplicaState::Assigned,
         ReplicaStateDto::Failed => ReplicaState::Failed,
@@ -165,7 +160,7 @@ pub(super) fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     }
 }
 
-pub(super) fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
+pub fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
     match state {
         WorkerStateDto::Draining => WorkerState::Draining,
         WorkerStateDto::Lost => WorkerState::Lost,

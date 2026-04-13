@@ -16,7 +16,8 @@
 )]
 #![expect(
     clippy::map_err_ignore,
-    reason = "The database layer intentionally normalizes conversion errors into adapter-specific messages."
+    reason = "The database layer intentionally normalizes conversion errors into adapter-specific \
+              messages."
 )]
 #![expect(
     clippy::arithmetic_side_effects,
@@ -32,9 +33,9 @@ use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
     ArchitectureFamily, ArtifactRef, Deployment, DeploymentId, DeploymentStatusCounts,
     DeploymentStatusSummary, DeviceClass, DomainResult, Framework, Lease, LeaseId, LeaseState,
-    Replica, ReplicaId, ReplicaState, RuntimeName, Worker, WorkerCapability,
-    WorkerCapabilitySpec, WorkerId, WorkerState, WorkloadMode, WorkloadProfile,
-    WorkloadRequirement, WorkloadRequirementSpec,
+    Replica, ReplicaId, ReplicaState, RuntimeName, Worker, WorkerCapability, WorkerCapabilitySpec,
+    WorkerId, WorkerState, WorkloadMode, WorkloadProfile, WorkloadRequirement,
+    WorkloadRequirementSpec,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
@@ -104,7 +105,10 @@ impl PostgresStorage {
         Self { db }
     }
 
-    #[expect(dead_code, reason = "Only tests and debugging helpers need direct database access.")]
+    #[expect(
+        dead_code,
+        reason = "Only tests and debugging helpers need direct database access."
+    )]
     #[must_use]
     pub const fn connection(&self) -> &DatabaseConnection {
         &self.db
@@ -1087,13 +1091,13 @@ impl deployment::Model {
             u32::try_from(self.replicas_desired)?,
             requirement,
             DeploymentStatusSummary::from_counts(DeploymentStatusCounts {
-                pending: u32::try_from(self.pending_replicas)?,
+                pending:  u32::try_from(self.pending_replicas)?,
                 assigned: u32::try_from(self.assigned_replicas)?,
-                pulling: u32::try_from(self.pulling_replicas)?,
+                pulling:  u32::try_from(self.pulling_replicas)?,
                 starting: u32::try_from(self.starting_replicas)?,
-                ready: u32::try_from(self.ready_replicas)?,
-                failed: u32::try_from(self.failed_replicas)?,
-                stopped: u32::try_from(self.stopped_replicas)?,
+                ready:    u32::try_from(self.ready_replicas)?,
+                failed:   u32::try_from(self.failed_replicas)?,
+                stopped:  u32::try_from(self.stopped_replicas)?,
             }),
         ))
     }
