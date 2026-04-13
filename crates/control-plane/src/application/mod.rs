@@ -49,7 +49,7 @@ impl ControlPlaneService {
         &self,
         request: dlp_api::CreateDeploymentRequest,
     ) -> Result<Deployment> {
-        let deployment_id = DeploymentId::new(self.state.0.next_id("deployment").await?)?;
+        let deployment_id = DeploymentId::new(self.state.0.next_deployment_id().await?)?;
         let mut deployment = Deployment::new(
             deployment_id.clone(),
             request.name,
@@ -59,7 +59,7 @@ impl ControlPlaneService {
         );
         let mut replicas = Vec::with_capacity(deployment.replicas_desired() as usize);
         for _ in 0..deployment.replicas_desired() {
-            let replica_id = ReplicaId::new(self.state.0.next_id("replica").await?)?;
+            let replica_id = ReplicaId::new(self.state.0.next_replica_id().await?)?;
             replicas.push(Replica::new_pending(replica_id, deployment_id.clone()));
         }
         deployment.refresh_status(replicas.iter());
@@ -236,7 +236,7 @@ impl ControlPlaneService {
         }
         let mut current_replicas = replicas;
         for _ in active_replicas..deployment.replicas_desired() {
-            let replica_id = ReplicaId::new(self.state.0.next_id("replica").await?)?;
+            let replica_id = ReplicaId::new(self.state.0.next_replica_id().await?)?;
             let replica = Replica::new_pending(replica_id, deployment_id.clone());
             self.state.0.save_replica(replica.clone()).await?;
             current_replicas.push(replica);
@@ -315,7 +315,7 @@ impl ControlPlaneService {
         let Some(worker_id) = self.select_worker(deployment.requirement()).await? else {
             return Ok(());
         };
-        let lease_id = LeaseId::new(self.state.0.next_id("lease").await?)?;
+        let lease_id = LeaseId::new(self.state.0.next_lease_id().await?)?;
         let lease = Lease::new(
             lease_id.clone(),
             worker_id.clone(),

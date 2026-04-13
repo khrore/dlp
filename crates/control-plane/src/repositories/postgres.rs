@@ -12,13 +12,61 @@ use dlp_domain::{
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
-    DbBackend, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set, Statement,
-    TransactionTrait,
+    EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set, TransactionTrait,
 };
 use serde_json::Value;
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
 use crate::domain_services::scheduler::available_capacity_for_requirement;
+
+mod ids {
+    use anyhow::{Result, anyhow};
+    use sea_orm::{ConnectionTrait, DbBackend, Statement};
+
+    const DEPLOYMENT_SEQUENCE: &str = "deployment_id_seq";
+    const REPLICA_SEQUENCE: &str = "replica_id_seq";
+    const LEASE_SEQUENCE: &str = "lease_id_seq";
+
+    pub(super) async fn next_deployment_id<C>(connection: &C) -> Result<String>
+    where
+        C: ConnectionTrait,
+    {
+        next_prefixed_id(connection, "deployment", DEPLOYMENT_SEQUENCE).await
+    }
+
+    pub(super) async fn next_replica_id<C>(connection: &C) -> Result<String>
+    where
+        C: ConnectionTrait,
+    {
+        next_prefixed_id(connection, "replica", REPLICA_SEQUENCE).await
+    }
+
+    pub(super) async fn next_lease_id<C>(connection: &C) -> Result<String>
+    where
+        C: ConnectionTrait,
+    {
+        next_prefixed_id(connection, "lease", LEASE_SEQUENCE).await
+    }
+
+    async fn next_prefixed_id<C>(connection: &C, prefix: &str, sequence: &str) -> Result<String>
+    where
+        C: ConnectionTrait,
+    {
+        // PostgreSQL sequence advancement is a backend-native primitive that SeaORM
+        // does not model directly, so the adapter keeps this single raw SQL
+        // call behind a typed helper.
+        let statement = Statement::from_string(
+            DbBackend::Postgres,
+            format!("SELECT nextval('{sequence}')::bigint AS value"),
+        );
+        let row = connection
+            .query_one(statement)
+            .await?
+            .ok_or_else(|| anyhow!("sequence {sequence} returned no row"))?;
+        let value: i64 = row.try_get("", "value")?;
+        Ok(format!("{prefix}-{value}"))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresStorage {
@@ -39,24 +87,16 @@ impl PostgresStorage {
 
 #[async_trait]
 impl StorageBackend for PostgresStorage {
-    async fn next_id(&self, prefix: &str) -> Result<String> {
-        let sequence = match prefix {
-            "deployment" => "deployment_id_seq",
-            "replica" => "replica_id_seq",
-            "lease" => "lease_id_seq",
-            _ => return Err(anyhow!("unsupported id prefix: {prefix}")),
-        };
-        let statement = Statement::from_string(
-            DbBackend::Postgres,
-            format!("SELECT nextval('{sequence}')::bigint AS value"),
-        );
-        let row = self
-            .db
-            .query_one(statement)
-            .await?
-            .ok_or_else(|| anyhow!("sequence {sequence} returned no row"))?;
-        let value: i64 = row.try_get("", "value")?;
-        Ok(format!("{prefix}-{value}"))
+    async fn next_deployment_id(&self) -> Result<String> {
+        ids::next_deployment_id(&self.db).await
+    }
+
+    async fn next_replica_id(&self) -> Result<String> {
+        ids::next_replica_id(&self.db).await
+    }
+
+    async fn next_lease_id(&self) -> Result<String> {
+        ids::next_lease_id(&self.db).await
     }
 
     async fn create_deployment_with_replicas(
@@ -1167,5 +1207,171 @@ impl worker_assignment::ActiveModel {
 impl worker_assignment::Model {
     fn payload(&self) -> Result<WorkerAssignmentDto> {
         serde_json::from_value(self.payload.clone()).map_err(Into::into)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, sync::OnceLock};
+
+    use sea_orm::{ConnectionTrait as _, Database, DbBackend, Statement};
+    use sea_orm_migration::MigratorTrait as _;
+    use tokio::sync::Mutex;
+
+    use super::{PostgresStorage, ids};
+    use crate::repositories::{StorageBackend as _, migration::Migrator};
+
+    static POSTGRES_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    fn postgres_test_database_url() -> Option<String> {
+        env::var("DLP_POSTGRES_TEST_DATABASE_URL").ok()
+    }
+
+    async fn connect_test_database() -> Option<sea_orm::DatabaseConnection> {
+        let database_url = postgres_test_database_url()?;
+        Database::connect(database_url).await.ok()
+    }
+
+    async fn sequence_exists(
+        connection: &sea_orm::DatabaseConnection,
+        sequence_name: &str,
+    ) -> anyhow::Result<bool> {
+        let statement = Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "SELECT to_regclass($1) IS NOT NULL AS present",
+            [sequence_name.into()],
+        );
+        let row = connection
+            .query_one(statement)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("sequence existence query returned no row"))?;
+        let present: bool = row.try_get("", "present")?;
+        Ok(present)
+    }
+
+    #[tokio::test]
+    async fn sequence_backed_ids_are_prefixed_and_unique() {
+        let Some(connection) = connect_test_database().await else {
+            return;
+        };
+        let _guard = POSTGRES_TEST_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .await;
+        if let Err(error) = Migrator::up(&connection, None).await {
+            panic!("failed to apply migrations: {error}");
+        }
+        let storage = PostgresStorage::new(connection);
+
+        let deployment_a = storage
+            .next_deployment_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate deployment id: {error}"));
+        let deployment_b = storage
+            .next_deployment_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate deployment id: {error}"));
+        let replica_a = storage
+            .next_replica_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate replica id: {error}"));
+        let replica_b = storage
+            .next_replica_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate replica id: {error}"));
+        let lease_a = storage
+            .next_lease_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate lease id: {error}"));
+        let lease_b = storage
+            .next_lease_id()
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate lease id: {error}"));
+
+        assert!(deployment_a.starts_with("deployment-"));
+        assert!(deployment_b.starts_with("deployment-"));
+        assert_ne!(deployment_a, deployment_b);
+        assert!(replica_a.starts_with("replica-"));
+        assert!(replica_b.starts_with("replica-"));
+        assert_ne!(replica_a, replica_b);
+        assert!(lease_a.starts_with("lease-"));
+        assert!(lease_b.starts_with("lease-"));
+        assert_ne!(lease_a, lease_b);
+    }
+
+    #[tokio::test]
+    async fn migrations_create_required_sequences() {
+        let Some(connection) = connect_test_database().await else {
+            return;
+        };
+        let _guard = POSTGRES_TEST_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .await;
+        if let Err(error) = Migrator::up(&connection, None).await {
+            panic!("failed to apply migrations: {error}");
+        }
+
+        for sequence in ["deployment_id_seq", "replica_id_seq", "lease_id_seq"] {
+            let exists = sequence_exists(&connection, sequence)
+                .await
+                .unwrap_or_else(|error| panic!("failed to check sequence {sequence}: {error}"));
+            assert!(exists);
+        }
+    }
+
+    #[tokio::test]
+    async fn migrations_down_remove_required_sequences() {
+        let Some(connection) = connect_test_database().await else {
+            return;
+        };
+        let _guard = POSTGRES_TEST_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .await;
+        if let Err(error) = Migrator::up(&connection, None).await {
+            panic!("failed to apply migrations: {error}");
+        }
+        if let Err(error) = Migrator::down(&connection, None).await {
+            panic!("failed to roll migrations down: {error}");
+        }
+
+        for sequence in ["deployment_id_seq", "replica_id_seq", "lease_id_seq"] {
+            let exists = sequence_exists(&connection, sequence)
+                .await
+                .unwrap_or_else(|error| panic!("failed to check sequence {sequence}: {error}"));
+            assert!(!exists);
+        }
+
+        if let Err(error) = Migrator::up(&connection, None).await {
+            panic!("failed to re-apply migrations: {error}");
+        }
+    }
+
+    #[tokio::test]
+    async fn typed_id_helpers_are_the_only_sequence_entrypoints() {
+        let Some(connection) = connect_test_database().await else {
+            return;
+        };
+        let _guard = POSTGRES_TEST_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .await;
+        if let Err(error) = Migrator::up(&connection, None).await {
+            panic!("failed to apply migrations: {error}");
+        }
+
+        let deployment_id = ids::next_deployment_id(&connection)
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate deployment id: {error}"));
+        assert!(deployment_id.starts_with("deployment-"));
+        let replica_id = ids::next_replica_id(&connection)
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate replica id: {error}"));
+        assert!(replica_id.starts_with("replica-"));
+        let lease_id = ids::next_lease_id(&connection)
+            .await
+            .unwrap_or_else(|error| panic!("failed to allocate lease id: {error}"));
+        assert!(lease_id.starts_with("lease-"));
     }
 }

@@ -21,7 +21,9 @@ pub enum UpdateReplicaStatusResult {
 
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
-    async fn next_id(&self, prefix: &str) -> Result<String>;
+    async fn next_deployment_id(&self) -> Result<String>;
+    async fn next_replica_id(&self) -> Result<String>;
+    async fn next_lease_id(&self) -> Result<String>;
 
     async fn create_deployment_with_replicas(
         &self,

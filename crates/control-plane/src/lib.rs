@@ -68,7 +68,7 @@ pub fn app(state: SharedState) -> Router {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{fs, path::Path, time::Duration};
 
     use axum::{
         body::{Body, to_bytes},
@@ -418,7 +418,7 @@ mod tests {
                 .await
                 .expect("force heartbeat age should succeed")
         );
-        service.reconcile_once().await;
+        drop(service.reconcile_once().await);
 
         let (status, workers) =
             json_response::<ListWorkersResponse>(app(state.clone()), get_request("/workers")).await;
@@ -437,5 +437,60 @@ mod tests {
             deployment.map(|response| response.deployment.status.stopped_replicas),
             Some(1)
         );
+    }
+
+    #[test]
+    fn application_uses_typed_storage_id_methods() {
+        let source = include_str!("application/mod.rs");
+        assert!(!source.contains("next_id("));
+        assert!(source.contains("next_deployment_id("));
+        assert!(source.contains("next_replica_id("));
+        assert!(source.contains("next_lease_id("));
+    }
+
+    #[test]
+    fn raw_sql_is_confined_to_postgres_modules() {
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        assert_no_raw_sql_outside_allowed_modules(&source_root);
+    }
+
+    fn assert_no_raw_sql_outside_allowed_modules(root: &Path) {
+        for entry in fs::read_dir(root).expect("source directory should be readable") {
+            let entry = entry.expect("directory entry should be readable");
+            let path = entry.path();
+            if path.is_dir() {
+                assert_no_raw_sql_outside_allowed_modules(&path);
+                continue;
+            }
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
+                continue;
+            }
+            let relative = path
+                .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))
+                .expect("path should be under crate root");
+            let relative_str = relative.to_string_lossy();
+            if relative_str == "src/repositories/postgres.rs"
+                || relative_str == "src/repositories/migration.rs"
+                || relative_str == "src/lib.rs"
+            {
+                continue;
+            }
+            let source = fs::read_to_string(&path).expect("source file should be readable");
+            assert!(
+                !source.contains("Statement::from_string("),
+                "unexpected raw SQL builder in {}",
+                relative_str
+            );
+            assert!(
+                !source.contains("execute_unprepared("),
+                "unexpected unprepared SQL in {}",
+                relative_str
+            );
+            assert!(
+                !source.contains("SELECT nextval("),
+                "unexpected sequence SQL in {}",
+                relative_str
+            );
+        }
     }
 }

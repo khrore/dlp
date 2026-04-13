@@ -48,14 +48,26 @@ impl MemoryStorage {
             })),
         }
     }
+
+    async fn next_typed_id(&self, prefix: &str) -> Result<String> {
+        let mut state = self.inner.lock().await;
+        state.next_id = state.next_id.saturating_add(1);
+        Ok(format!("{prefix}-{}", state.next_id))
+    }
 }
 
 #[async_trait]
 impl StorageBackend for MemoryStorage {
-    async fn next_id(&self, prefix: &str) -> Result<String> {
-        let mut state = self.inner.lock().await;
-        state.next_id = state.next_id.saturating_add(1);
-        Ok(format!("{prefix}-{}", state.next_id))
+    async fn next_deployment_id(&self) -> Result<String> {
+        self.next_typed_id("deployment").await
+    }
+
+    async fn next_replica_id(&self) -> Result<String> {
+        self.next_typed_id("replica").await
+    }
+
+    async fn next_lease_id(&self) -> Result<String> {
+        self.next_typed_id("lease").await
     }
 
     async fn create_deployment_with_replicas(

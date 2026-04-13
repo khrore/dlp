@@ -20,6 +20,9 @@ mod m20260410_000001_create_storage_schema {
     #[async_trait::async_trait]
     impl MigrationTrait for Migration {
         async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+            // PostgreSQL sequence DDL is backend-specific and clearer here than forcing it
+            // through a partial abstraction, so migrations keep this raw SQL narrowly
+            // scoped.
             manager
                 .get_connection()
                 .execute_unprepared(
@@ -469,6 +472,8 @@ mod m20260410_000001_create_storage_schema {
 
             manager
                 .get_connection()
+                // PostgreSQL sequence DDL is backend-specific and clearer here than forcing it
+                // through a partial abstraction, so migrations keep this raw SQL narrowly scoped.
                 .execute_unprepared(
                     r#"
                     DROP SEQUENCE IF EXISTS deployment_id_seq;
