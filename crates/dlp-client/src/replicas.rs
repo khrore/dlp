@@ -1,13 +1,16 @@
-use dlp_api::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest};
+use dlp_api::replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest};
 
 use crate::{errors::ClientError, transport::DlpClient};
 
-pub trait ReplicasClientExt {
+/// Replica endpoints exposed by the API client.
+pub trait Client {
+    /// Lists replicas, optionally filtered by deployment id.
     async fn list_replicas(
         &self,
         deployment_id: Option<&str>,
     ) -> Result<ListReplicasResponse, ClientError>;
 
+    /// Updates a replica status for a worker lease.
     async fn update_replica_status(
         &self,
         replica_id: &str,
@@ -15,7 +18,7 @@ pub trait ReplicasClientExt {
     ) -> Result<ReplicaDto, ClientError>;
 }
 
-impl ReplicasClientExt for DlpClient {
+impl Client for DlpClient {
     async fn list_replicas(
         &self,
         deployment_id: Option<&str>,

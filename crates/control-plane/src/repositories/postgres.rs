@@ -5,10 +5,17 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    ArchitectureFamily, ArtifactRef, Deployment, DeploymentId, DeploymentStatusSummary,
-    DeviceClass, Framework, Lease, LeaseId, LeaseState, Replica, ReplicaId, ReplicaState,
-    RuntimeName, Worker, WorkerCapability, WorkerId, WorkerState, WorkloadMode,
-    WorkloadRequirement,
+    artifacts::ArtifactRef,
+    deployments::{Deployment, DeploymentStatusSummary},
+    errors::DomainResult,
+    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
+    leases::{Lease, LeaseState},
+    replicas::{Replica, ReplicaState},
+    requirements::{
+        ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkerCapability, WorkloadMode,
+        WorkloadRequirement,
+    },
+    workers::{Worker, WorkerState},
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
@@ -69,18 +76,18 @@ mod ids {
 }
 
 #[derive(Debug, Clone)]
-pub struct PostgresStorage {
+pub(crate) struct PostgresStorage {
     db: DatabaseConnection,
 }
 
 impl PostgresStorage {
     #[must_use]
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub(crate) fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
     #[must_use]
-    pub fn connection(&self) -> &DatabaseConnection {
+    pub(crate) fn connection(&self) -> &DatabaseConnection {
         &self.db
     }
 }
@@ -136,7 +143,7 @@ impl StorageBackend for PostgresStorage {
             .await?
             .into_iter()
             .map(|model| DeploymentId::new(model.id))
-            .collect::<dlp_domain::DomainResult<Vec<_>>>()
+            .collect::<DomainResult<Vec<_>>>()
             .map_err(Into::into)
     }
 
@@ -210,7 +217,7 @@ impl StorageBackend for PostgresStorage {
             .await?
             .into_iter()
             .map(|model| ReplicaId::new(model.id))
-            .collect::<dlp_domain::DomainResult<Vec<_>>>()
+            .collect::<DomainResult<Vec<_>>>()
             .map_err(Into::into)
     }
 
@@ -252,7 +259,7 @@ impl StorageBackend for PostgresStorage {
             .await?
             .into_iter()
             .map(|model| LeaseId::new(model.id))
-            .collect::<dlp_domain::DomainResult<Vec<_>>>()
+            .collect::<DomainResult<Vec<_>>>()
             .map_err(Into::into)
     }
 
@@ -273,7 +280,7 @@ impl StorageBackend for PostgresStorage {
             .await?
             .into_iter()
             .map(|model| WorkerId::new(model.id))
-            .collect::<dlp_domain::DomainResult<Vec<_>>>()
+            .collect::<DomainResult<Vec<_>>>()
             .map_err(Into::into)
     }
 
@@ -575,7 +582,7 @@ impl StorageBackend for PostgresStorage {
             .await?
             .into_iter()
             .map(|model| WorkerId::new(model.id))
-            .collect::<dlp_domain::DomainResult<Vec<_>>>()
+            .collect::<DomainResult<Vec<_>>>()
             .map_err(Into::into)
     }
 
@@ -827,7 +834,7 @@ fn set_status_on_deployment(
     Ok(())
 }
 
-mod deployment {
+pub mod deployment {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 
@@ -863,7 +870,7 @@ mod deployment {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-mod replica_entity {
+pub mod replica_entity {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 
@@ -887,7 +894,7 @@ mod replica_entity {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-mod lease_entity {
+pub mod lease_entity {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 
@@ -917,7 +924,7 @@ mod lease_entity {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-mod worker_entity {
+pub mod worker_entity {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 
@@ -941,7 +948,7 @@ mod worker_entity {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-mod worker_capability {
+pub mod worker_capability {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 
@@ -967,7 +974,7 @@ mod worker_capability {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-mod worker_assignment {
+pub mod worker_assignment {
     use chrono::{DateTime, Utc};
     use sea_orm::entity::prelude::*;
 

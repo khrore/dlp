@@ -12,10 +12,18 @@ use std::{
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use dlp_api::{
-    DeviceClass, Framework, RegisterWorkerRequest, ReplicaState, UpdateReplicaStatusRequest,
-    WorkerAssignmentDto, WorkerCapabilityDto, WorkerHeartbeatRequest, WorkerState, WorkloadMode,
+    replicas::{ReplicaState, UpdateReplicaStatusRequest},
+    shared::{DeviceClass, Framework, WorkloadMode},
+    workers::{
+        RegisterWorkerRequest, WorkerAssignmentDto, WorkerCapabilityDto, WorkerHeartbeatRequest,
+        WorkerState,
+    },
 };
-use dlp_client::{DlpClient, ReplicasClientExt as _, WorkersClientExt as _};
+use dlp_client::{
+    replicas::Client as _,
+    transport::DlpClient,
+    workers::Client as _,
+};
 use tokio::{
     sync::Mutex,
     time::{MissedTickBehavior, interval, sleep},
@@ -230,7 +238,7 @@ fn log_assignment_error(error: anyhow::Error) {
 #[cfg(test)]
 mod tests {
     use control_plane as _;
-    use dlp_api::ReplicaState;
+    use dlp_api::replicas::ReplicaState;
 
     use super::{FailureMode, LifecycleStep, RuntimeProvider as _, SimulatedProvider};
 

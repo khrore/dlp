@@ -201,31 +201,37 @@ impl Deployment {
 mod tests {
     use super::DeploymentStatusSummary;
     use crate::{
-        ArtifactRef, Deployment, DeploymentId, Framework, Replica, ReplicaId, ReplicaState,
-        RuntimeName, WorkloadMode, WorkloadRequirement,
+        artifacts::ArtifactRef,
+        deployments::Deployment,
+        ids::{DeploymentId, ReplicaId},
+        replicas::{Replica, ReplicaState},
+        requirements::{
+            ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkloadMode,
+            WorkloadRequirement,
+        },
     };
 
     #[test]
     fn deployment_status_summary_counts_replica_states() {
         let deployment_id = DeploymentId::new("deployment-1").expect("valid");
         let mut deployment = Deployment::new(
-            deployment_id.clone(),
+            deployment_id,
             "trainer".to_owned(),
             ArtifactRef::new("artifact://model").expect("valid"),
             1,
             WorkloadRequirement::new(
                 Framework::Pytorch,
                 WorkloadMode::Training,
-                crate::DeviceClass::Cpu,
+                DeviceClass::Cpu,
                 RuntimeName::new("cpu").expect("valid"),
-                crate::ArchitectureFamily::new("generic").expect("valid"),
+                ArchitectureFamily::new("generic").expect("valid"),
                 1024,
                 1,
             ),
         );
         let mut ready = Replica::new_pending(
             ReplicaId::new("replica-1").expect("valid"),
-            deployment_id.clone(),
+            deployment.id().clone(),
         );
         ready
             .update_status(ReplicaState::Assigned, Some("assigned".to_owned()))

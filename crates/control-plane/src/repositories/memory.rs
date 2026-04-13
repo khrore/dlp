@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, VecDeque},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -7,16 +8,19 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    Deployment, DeploymentId, Lease, LeaseId, LeaseState, Replica, ReplicaId, ReplicaState, Worker,
-    WorkerId, WorkerState,
+    deployments::Deployment,
+    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
+    leases::{Lease, LeaseState},
+    replicas::{Replica, ReplicaState},
+    workers::{Worker, WorkerState},
 };
 use tokio::sync::Mutex;
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
 
 #[derive(Debug, Clone)]
-pub struct MemoryStorage {
-    inner: std::sync::Arc<Mutex<MemoryState>>,
+pub(crate) struct MemoryStorage {
+    inner: Arc<Mutex<MemoryState>>,
 }
 
 #[derive(Debug)]
@@ -37,9 +41,9 @@ struct MemoryState {
 
 impl MemoryStorage {
     #[must_use]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            inner: std::sync::Arc::new(Mutex::new(MemoryState {
+            inner: Arc::new(Mutex::new(MemoryState {
                 deployments: BTreeMap::new(),
                 leases:      BTreeMap::new(),
                 next_id:     0,

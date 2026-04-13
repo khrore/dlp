@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use dlp_client::DlpClient;
+use dlp_client::transport::DlpClient;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
     commands::execute_command,
 };
 
-pub async fn run_repl(client: DlpClient) -> Result<()> {
+pub(crate) async fn run_repl(client: DlpClient) -> Result<()> {
     let stdin = BufReader::new(io::stdin());
     let mut lines = stdin.lines();
     let mut stdout = io::stdout();
@@ -46,7 +46,7 @@ pub async fn run_repl(client: DlpClient) -> Result<()> {
     Ok(())
 }
 
-pub fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
+pub(crate) fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
     match input.trim() {
         "" => bail!("enter a command"),
         "health" => Ok(InteractiveCommand::Health),

@@ -1,19 +1,12 @@
 //! API DTOs for DLP.
 
+/// Deployment request and response DTOs.
 pub mod deployments;
+/// Health-check response DTOs.
 pub mod health;
+/// Replica request and response DTOs.
 pub mod replicas;
+/// Shared enums and workload requirement DTOs.
 pub mod shared;
+/// Worker request and response DTOs.
 pub mod workers;
-
-pub use deployments::{
-    CreateDeploymentRequest, CreateDeploymentResponse, DeploymentDto, DeploymentStatusSummaryDto,
-    GetDeploymentResponse,
-};
-pub use health::HealthResponse;
-pub use replicas::{ListReplicasResponse, ReplicaDto, ReplicaState, UpdateReplicaStatusRequest};
-pub use shared::{DeviceClass, Framework, WorkloadMode, WorkloadRequirementDto};
-pub use workers::{
-    ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse, WorkerAssignmentDto,
-    WorkerCapabilityDto, WorkerDto, WorkerHeartbeatRequest, WorkerHeartbeatResponse, WorkerState,
-};

@@ -1,6 +1,10 @@
-use dlp_domain::{Lease, Worker, WorkerCapability, WorkloadRequirement};
+use dlp_domain::{
+    leases::Lease,
+    requirements::{WorkerCapability, WorkloadRequirement},
+    workers::Worker,
+};
 
-pub fn capability_matches(
+pub(crate) fn capability_matches(
     capability: &WorkerCapability,
     requirement: &WorkloadRequirement,
 ) -> bool {
@@ -11,7 +15,7 @@ pub fn capability_matches(
         && capability.architecture_family() == requirement.architecture_family()
 }
 
-pub fn available_capacity_for_requirement(
+pub(crate) fn available_capacity_for_requirement(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[Lease],
@@ -43,7 +47,7 @@ pub fn available_capacity_for_requirement(
         })
 }
 
-pub fn worker_is_eligible(
+pub(crate) fn worker_is_eligible(
     worker: &Worker,
     requirement: &WorkloadRequirement,
     leases: &[Lease],

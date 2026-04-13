@@ -3,11 +3,11 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use dlp_api::{
+use dlp_api::workers::{
     ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse, WorkerHeartbeatRequest,
     WorkerHeartbeatResponse,
 };
-use dlp_domain::WorkerId;
+use dlp_domain::{errors::DomainError, ids::WorkerId};
 
 use crate::{
     application::{ControlPlaneService, SharedState},
@@ -68,7 +68,7 @@ fn internal_error(error: impl ToString) -> (StatusCode, String) {
 }
 
 fn map_error(error: anyhow::Error) -> (StatusCode, String) {
-    if let Some(domain_error) = error.downcast_ref::<dlp_domain::DomainError>() {
+    if let Some(domain_error) = error.downcast_ref::<DomainError>() {
         return (StatusCode::BAD_REQUEST, domain_error.to_string());
     }
 

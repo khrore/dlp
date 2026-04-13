@@ -4,10 +4,13 @@ use axum::{
     http::StatusCode,
 };
 use dlp_api::{
-    CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse, ListReplicasResponse,
-    ReplicaDto, UpdateReplicaStatusRequest,
+    deployments::{CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse},
+    replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest},
 };
-use dlp_domain::DeploymentId;
+use dlp_domain::{
+    errors::DomainError,
+    ids::{DeploymentId, ReplicaId},
+};
 use serde::Deserialize;
 
 use crate::{
@@ -83,7 +86,7 @@ pub(crate) async fn update_replica_status(
     Path(replica_id): Path<String>,
     Json(request): Json<UpdateReplicaStatusRequest>,
 ) -> Result<Json<ReplicaDto>, (StatusCode, String)> {
-    let replica_id = dlp_domain::ReplicaId::new(replica_id).map_err(invalid_request)?;
+    let replica_id = ReplicaId::new(replica_id).map_err(invalid_request)?;
     let service = ControlPlaneService::new(state.clone());
     let replica = service
         .update_replica_status(&replica_id, request)
@@ -108,7 +111,7 @@ fn internal_error(error: impl ToString) -> (StatusCode, String) {
 }
 
 fn map_error(error: anyhow::Error) -> (StatusCode, String) {
-    if let Some(domain_error) = error.downcast_ref::<dlp_domain::DomainError>() {
+    if let Some(domain_error) = error.downcast_ref::<DomainError>() {
         return invalid_request(domain_error);
     }
 

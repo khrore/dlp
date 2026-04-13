@@ -1,7 +1,13 @@
 use anyhow::Result;
-use dlp_api::{CreateDeploymentRequest, WorkloadRequirementDto};
+use dlp_api::{
+    deployments::CreateDeploymentRequest,
+    shared::WorkloadRequirementDto,
+};
 use dlp_client::{
-    DeploymentsClientExt as _, DlpClient, ReplicasClientExt as _, WorkersClientExt as _,
+    deployments::Client as _,
+    replicas::Client as _,
+    transport::DlpClient,
+    workers::Client as _,
 };
 
 use crate::{
@@ -9,7 +15,7 @@ use crate::{
     render::{format_deployment, format_replica, format_worker},
 };
 
-pub async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {
+pub(crate) async fn execute_command(command: Command, client: &DlpClient) -> Result<String> {
     match command {
         Command::Health => {
             let health = client.health_check().await?;

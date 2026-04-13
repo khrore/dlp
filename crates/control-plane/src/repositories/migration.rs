@@ -2,7 +2,7 @@
 
 use sea_orm_migration::prelude::*;
 
-pub struct Migrator;
+pub(crate) struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
@@ -15,7 +15,7 @@ mod m20260410_000001_create_storage_schema {
     use sea_orm_migration::prelude::*;
 
     #[derive(DeriveMigrationName)]
-    pub struct Migration;
+    pub(super) struct Migration;
 
     #[async_trait::async_trait]
     impl MigrationTrait for Migration {

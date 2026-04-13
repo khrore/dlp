@@ -8,12 +8,19 @@ use dlp_api::{
     workers::{WorkerAssignmentDto, WorkerCapabilityDto, WorkerDto, WorkerState as WorkerStateDto},
 };
 use dlp_domain::{
-    ArchitectureFamily, ArtifactRef, Deployment, DeploymentStatusSummary, DeviceClass, Framework,
-    Lease, Replica, ReplicaState, RuntimeName, Worker, WorkerCapability, WorkerState, WorkloadMode,
-    WorkloadRequirement,
+    artifacts::ArtifactRef,
+    deployments::{Deployment, DeploymentStatusSummary},
+    errors::DomainResult,
+    replicas::{Replica, ReplicaState},
+    requirements::{
+        ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkerCapability, WorkloadMode,
+        WorkloadRequirement,
+    },
+    leases::Lease,
+    workers::{Worker, WorkerState},
 };
 
-pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
+pub(crate) fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     DeploymentDto {
         artifact_ref:     deployment.artifact_ref().to_string(),
         id:               deployment.id().to_string(),
@@ -24,7 +31,9 @@ pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
     }
 }
 
-pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentStatusSummaryDto {
+pub(crate) fn deployment_status_to_dto(
+    status: &DeploymentStatusSummary,
+) -> DeploymentStatusSummaryDto {
     DeploymentStatusSummaryDto {
         assigned_replicas: status.assigned_replicas(),
         failed_replicas:   status.failed_replicas(),
@@ -36,7 +45,7 @@ pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentS
     }
 }
 
-pub fn replica_to_dto(replica: &Replica) -> ReplicaDto {
+pub(crate) fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     ReplicaDto {
         deployment_id:  replica.deployment_id().to_string(),
         id:             replica.id().to_string(),
@@ -47,7 +56,7 @@ pub fn replica_to_dto(replica: &Replica) -> ReplicaDto {
     }
 }
 
-pub fn worker_to_dto(worker: &Worker) -> WorkerDto {
+pub(crate) fn worker_to_dto(worker: &Worker) -> WorkerDto {
     WorkerDto {
         assigned_replicas: worker.assigned_replicas(),
         available_slots:   worker.available_slots(),
@@ -62,7 +71,7 @@ pub fn worker_to_dto(worker: &Worker) -> WorkerDto {
     }
 }
 
-pub fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
+pub(crate) fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
     WorkerCapabilityDto {
         accelerator_runtime:    capability.accelerator_runtime().to_string(),
         architecture_family:    capability.architecture_family().to_string(),
@@ -74,7 +83,7 @@ pub fn capability_to_dto(capability: &WorkerCapability) -> WorkerCapabilityDto {
     }
 }
 
-pub fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirementDto {
+pub(crate) fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirementDto {
     WorkloadRequirementDto {
         accelerator_runtime:      requirement.accelerator_runtime().to_string(),
         architecture_family:      requirement.architecture_family().to_string(),
@@ -86,7 +95,7 @@ pub fn requirement_to_dto(requirement: &WorkloadRequirement) -> WorkloadRequirem
     }
 }
 
-pub fn assignment_to_dto(
+pub(crate) fn assignment_to_dto(
     deployment: &Deployment,
     lease: &Lease,
     replica: &Replica,
@@ -101,9 +110,9 @@ pub fn assignment_to_dto(
     }
 }
 
-pub fn requirement_from_dto(
+pub(crate) fn requirement_from_dto(
     dto: WorkloadRequirementDto,
-) -> dlp_domain::DomainResult<WorkloadRequirement> {
+) -> DomainResult<WorkloadRequirement> {
     Ok(WorkloadRequirement::new(
         framework_from_dto(dto.framework),
         mode_from_dto(dto.mode),
@@ -115,7 +124,9 @@ pub fn requirement_from_dto(
     ))
 }
 
-pub fn capability_from_dto(dto: WorkerCapabilityDto) -> dlp_domain::DomainResult<WorkerCapability> {
+pub(crate) fn capability_from_dto(
+    dto: WorkerCapabilityDto,
+) -> DomainResult<WorkerCapability> {
     Ok(WorkerCapability::new(
         framework_from_dto(dto.framework),
         mode_from_dto(dto.mode),
@@ -127,11 +138,11 @@ pub fn capability_from_dto(dto: WorkerCapabilityDto) -> dlp_domain::DomainResult
     ))
 }
 
-pub fn artifact_ref_from_string(value: String) -> dlp_domain::DomainResult<ArtifactRef> {
+pub(crate) fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
     ArtifactRef::new(value)
 }
 
-pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
+pub(crate) fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     match state {
         ReplicaStateDto::Assigned => ReplicaState::Assigned,
         ReplicaStateDto::Failed => ReplicaState::Failed,
@@ -143,7 +154,7 @@ pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     }
 }
 
-pub fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
+pub(crate) fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
     match state {
         WorkerStateDto::Draining => WorkerState::Draining,
         WorkerStateDto::Lost => WorkerState::Lost,

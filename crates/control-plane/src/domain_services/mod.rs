@@ -1,2 +1,2 @@
-pub mod reconcile;
-pub mod scheduler;
+pub(crate) mod reconcile;
+pub(crate) mod scheduler;

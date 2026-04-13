@@ -1,10 +1,19 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
-use dlp_api::workers::WorkerAssignmentDto;
+use dlp_api::{
+    deployments::CreateDeploymentRequest,
+    replicas::UpdateReplicaStatusRequest,
+    workers::{RegisterWorkerRequest, WorkerAssignmentDto},
+};
 use dlp_domain::{
-    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState,
+    deployments::Deployment,
+    errors::DomainError,
+    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
+    leases::Lease,
+    replicas::{Replica, ReplicaState},
+    requirements::WorkloadRequirement,
+    workers::{Worker, WorkerState},
 };
 
 use crate::{
@@ -17,12 +26,12 @@ use crate::{
 pub struct SharedState(Arc<dyn StorageBackend>);
 
 #[derive(Clone)]
-pub struct ControlPlaneService {
+pub(crate) struct ControlPlaneService {
     state: SharedState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UpdateReplicaStatusError {
+pub(crate) enum UpdateReplicaStatusError {
     LeaseConflict(String),
     UnknownReplica,
 }
@@ -41,13 +50,13 @@ impl SharedState {
 
 impl ControlPlaneService {
     #[must_use]
-    pub fn new(state: SharedState) -> Self {
+    pub(crate) fn new(state: SharedState) -> Self {
         Self { state }
     }
 
-    pub async fn create_deployment(
+    pub(crate) async fn create_deployment(
         &self,
-        request: dlp_api::CreateDeploymentRequest,
+        request: CreateDeploymentRequest,
     ) -> Result<Deployment> {
         let deployment_id = DeploymentId::new(self.state.0.next_deployment_id().await?)?;
         let mut deployment = Deployment::new(
@@ -70,7 +79,7 @@ impl ControlPlaneService {
         Ok(deployment)
     }
 
-    pub async fn get_deployment(
+    pub(crate) async fn get_deployment(
         &self,
         deployment_id: &DeploymentId,
     ) -> Result<Option<(Deployment, Vec<Replica>)>> {
@@ -83,14 +92,14 @@ impl ControlPlaneService {
         Ok(Some((deployment, replicas)))
     }
 
-    pub async fn list_replicas(
+    pub(crate) async fn list_replicas(
         &self,
         deployment_id: Option<&DeploymentId>,
     ) -> Result<Vec<Replica>> {
         self.state.0.list_replicas(deployment_id).await
     }
 
-    pub async fn list_workers(&self) -> Result<Vec<Worker>> {
+    pub(crate) async fn list_workers(&self) -> Result<Vec<Worker>> {
         self.refresh_worker_summaries().await?;
         let worker_ids = self.state.0.worker_ids().await?;
         let mut workers = Vec::with_capacity(worker_ids.len());
@@ -102,7 +111,7 @@ impl ControlPlaneService {
         Ok(workers)
     }
 
-    pub async fn register_worker(&self, request: dlp_api::RegisterWorkerRequest) -> Result<Worker> {
+    pub(crate) async fn register_worker(&self, request: RegisterWorkerRequest) -> Result<Worker> {
         let worker_id = WorkerId::new(request.worker_id)?;
         let capabilities = request
             .capabilities
@@ -120,7 +129,7 @@ impl ControlPlaneService {
         })
     }
 
-    pub async fn heartbeat_worker(
+    pub(crate) async fn heartbeat_worker(
         &self,
         worker_id: &WorkerId,
         worker_state: WorkerState,
@@ -140,10 +149,10 @@ impl ControlPlaneService {
         }
     }
 
-    pub async fn update_replica_status(
+    pub(crate) async fn update_replica_status(
         &self,
         replica_id: &ReplicaId,
-        request: dlp_api::UpdateReplicaStatusRequest,
+        request: UpdateReplicaStatusRequest,
     ) -> Result<Replica, UpdateReplicaStatusError> {
         let request_lease_id = LeaseId::new(request.lease_id.clone())
             .map_err(|error| UpdateReplicaStatusError::LeaseConflict(error.to_string()))?;
@@ -169,7 +178,7 @@ impl ControlPlaneService {
         }
     }
 
-    pub async fn reconcile_once(&self) -> Result<()> {
+    pub(crate) async fn reconcile_once(&self) -> Result<()> {
         let lost_workers = self
             .state
             .0
@@ -201,7 +210,7 @@ impl ControlPlaneService {
         Ok(())
     }
 
-    pub async fn force_last_heartbeat_age(
+    pub(crate) async fn force_last_heartbeat_age(
         &self,
         worker_id: &WorkerId,
         elapsed: Duration,
@@ -265,7 +274,7 @@ impl ControlPlaneService {
                     .filter_map(|capability| {
                         available_capacity_for_requirement(
                             &worker,
-                            &dlp_domain::WorkloadRequirement::new(
+                            &WorkloadRequirement::new(
                                 capability.framework().clone(),
                                 capability.mode().clone(),
                                 capability.device().clone(),
@@ -294,7 +303,7 @@ impl ControlPlaneService {
 
     async fn select_worker(
         &self,
-        requirement: &dlp_domain::WorkloadRequirement,
+        requirement: &WorkloadRequirement,
     ) -> Result<Option<WorkerId>> {
         for worker in self.state.0.ready_workers().await? {
             let leases = self.state.0.active_leases_for_worker(worker.id()).await?;

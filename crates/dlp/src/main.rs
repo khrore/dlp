@@ -8,7 +8,7 @@ mod repl;
 
 use anyhow::Result;
 use clap::Parser;
-use dlp_client::DlpClient;
+use dlp_client::transport::DlpClient;
 use tokio::io::{self, AsyncWriteExt as _};
 
 use crate::{args::Args, commands::execute_command, config::resolve_config, repl::run_repl};
@@ -37,8 +37,9 @@ mod tests {
     use clap::Parser as _;
     use control_plane as _;
     use dlp_api::{
-        DeploymentDto, DeploymentStatusSummaryDto, Framework, ReplicaDto, ReplicaState,
-        WorkloadMode, WorkloadRequirementDto,
+        deployments::{DeploymentDto, DeploymentStatusSummaryDto},
+        replicas::{ReplicaDto, ReplicaState},
+        shared::{DeviceClass, Framework, WorkloadMode, WorkloadRequirementDto},
     };
 
     use super::{
@@ -130,7 +131,7 @@ mod tests {
             requirement:      WorkloadRequirementDto {
                 framework:                Framework::Pytorch,
                 mode:                     WorkloadMode::Training,
-                device:                   dlp_api::DeviceClass::Cpu,
+                device:                   DeviceClass::Cpu,
                 accelerator_runtime:      "cpu".to_owned(),
                 architecture_family:      "generic".to_owned(),
                 memory_requirement_bytes: 1024,

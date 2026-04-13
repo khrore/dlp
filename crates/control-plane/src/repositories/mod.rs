@@ -8,8 +8,12 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState,
+    deployments::Deployment,
+    errors::DomainError,
+    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
+    leases::Lease,
+    replicas::{Replica, ReplicaState},
+    workers::{Worker, WorkerState},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,7 +95,7 @@ pub trait StorageBackend: Send + Sync {
     ) -> Result<bool>;
 }
 
-pub fn invalid_state_transition(
+fn invalid_state_transition(
     entity: &'static str,
     from: impl ToString,
     to: impl ToString,

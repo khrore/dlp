@@ -5,11 +5,11 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use dlp_api::HealthResponse;
+use dlp_api::health::StatusDto;
 
 use crate::application::SharedState;
 
-pub fn router(state: SharedState) -> Router {
+pub(crate) fn router(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/workers", get(workers::list_workers))
@@ -31,6 +31,6 @@ pub fn router(state: SharedState) -> Router {
         .with_state(state)
 }
 
-async fn health() -> Json<HealthResponse> {
-    Json(HealthResponse::ok("control-plane"))
+async fn health() -> Json<StatusDto> {
+    Json(StatusDto::ok("control-plane"))
 }

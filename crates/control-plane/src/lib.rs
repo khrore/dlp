@@ -4,14 +4,16 @@ pub(crate) mod application;
 pub(crate) mod domain_services;
 pub(crate) mod http;
 pub(crate) mod mappers;
-pub(crate) mod repositories;
+pub mod repositories;
 
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use app_config as _;
 use app_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
-pub use application::SharedState;
+use application::ControlPlaneService;
+/// Shared application state wrapper used by the control plane.
+pub type SharedState = application::SharedState;
 use axum::Router;
 use clap as _;
 use env_logger as _;
@@ -21,13 +23,16 @@ use repositories::{
     postgres::PostgresStorage,
 };
 use sea_orm::{ConnectOptions, Database};
-use sea_orm_migration::MigratorTrait;
+use sea_orm_migration::MigratorTrait as _;
+use tokio::time::{self, MissedTickBehavior};
 
+/// Creates a control-plane state backed by in-memory storage.
 #[must_use]
 pub fn new_shared_state() -> SharedState {
     SharedState::new(Arc::new(MemoryStorage::new()))
 }
 
+/// Creates a control-plane state from the configured storage backend.
 pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result<SharedState> {
     let storage: Arc<dyn RuntimeStorageBackend> = match config.storage.backend {
         ConfigStorageBackend::Memory => Arc::new(MemoryStorage::new()),
@@ -46,21 +51,20 @@ pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result
     Ok(SharedState::new(storage))
 }
 
+/// Starts the background reconcile loop for the control plane.
 pub fn spawn_reconcile_loop(state: SharedState) {
     tokio::spawn(async move {
-        let mut ticker =
-            tokio::time::interval(domain_services::reconcile::DEFAULT_RECONCILE_INTERVAL);
-        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut ticker = time::interval(domain_services::reconcile::DEFAULT_RECONCILE_INTERVAL);
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         loop {
             ticker.tick().await;
-            let _ = application::ControlPlaneService::new(state.clone())
-                .reconcile_once()
-                .await;
+            drop(ControlPlaneService::new(state.clone()).reconcile_once().await);
         }
     });
 }
 
+/// Builds the Axum router for the control-plane API.
 #[must_use]
 pub fn app(state: SharedState) -> Router {
     http::router(state)
@@ -68,18 +72,24 @@ pub fn app(state: SharedState) -> Router {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::Path, time::Duration};
+    use std::{ffi::OsStr, fs, path::Path, time::Duration};
 
     use axum::{
         body::{Body, to_bytes},
         http::{Request, StatusCode, header},
     };
     use dlp_api::{
-        CreateDeploymentRequest, DeviceClass, Framework, GetDeploymentResponse,
-        ListReplicasResponse, ListWorkersResponse, RegisterWorkerRequest, ReplicaState,
-        UpdateReplicaStatusRequest, WorkerCapabilityDto, WorkerHeartbeatRequest,
-        WorkerHeartbeatResponse, WorkerState, WorkloadMode, WorkloadRequirementDto,
+        deployments::{CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse},
+        health::StatusDto,
+        replicas::{ListReplicasResponse, ReplicaDto, ReplicaState, UpdateReplicaStatusRequest},
+        shared::{DeviceClass, Framework, WorkloadMode, WorkloadRequirementDto},
+        workers::{
+            ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse,
+            WorkerAssignmentDto, WorkerCapabilityDto, WorkerHeartbeatRequest,
+            WorkerHeartbeatResponse, WorkerState,
+        },
     };
+    use dlp_domain::ids::WorkerId;
     use serde::de::DeserializeOwned;
     use tower::util::ServiceExt as _;
 
@@ -118,7 +128,7 @@ mod tests {
 
     fn first_assignment(
         response: Option<WorkerHeartbeatResponse>,
-    ) -> Option<dlp_api::WorkerAssignmentDto> {
+    ) -> Option<WorkerAssignmentDto> {
         response?.assignments.into_iter().next()
     }
 
@@ -166,10 +176,10 @@ mod tests {
     async fn health_endpoint_returns_expected_payload() {
         let state = new_shared_state();
         let request = get_request("/health");
-        let (status, payload) = json_response::<dlp_api::HealthResponse>(app(state), request).await;
+        let (status, payload) = json_response::<StatusDto>(app(state), request).await;
 
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(payload, Some(dlp_api::HealthResponse::ok("control-plane")));
+        assert_eq!(payload, Some(StatusDto::ok("control-plane")));
     }
 
     #[tokio::test]
@@ -181,7 +191,7 @@ mod tests {
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        let (status, created) = json_response::<dlp_api::CreateDeploymentResponse>(
+        let (status, created) = json_response::<CreateDeploymentResponse>(
             app(state.clone()),
             post_json("/deployments", &create_request),
         )
@@ -224,12 +234,12 @@ mod tests {
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        json_response::<dlp_api::CreateDeploymentResponse>(
+        json_response::<CreateDeploymentResponse>(
             app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        json_response::<dlp_api::RegisterWorkerResponse>(
+        json_response::<RegisterWorkerResponse>(
             app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
@@ -265,12 +275,12 @@ mod tests {
             replicas_desired: 2,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        json_response::<dlp_api::CreateDeploymentResponse>(
+        json_response::<CreateDeploymentResponse>(
             app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        json_response::<dlp_api::RegisterWorkerResponse>(
+        json_response::<RegisterWorkerResponse>(
             app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
@@ -325,12 +335,12 @@ mod tests {
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        json_response::<dlp_api::CreateDeploymentResponse>(
+        json_response::<CreateDeploymentResponse>(
             app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        json_response::<dlp_api::RegisterWorkerResponse>(
+        json_response::<RegisterWorkerResponse>(
             app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
@@ -353,7 +363,7 @@ mod tests {
             .1,
         );
 
-        let (status, _) = json_response::<dlp_api::replicas::ReplicaDto>(
+        let (status, _) = json_response::<ReplicaDto>(
             app(state),
             post_json(
                 &format!(
@@ -383,12 +393,12 @@ mod tests {
             replicas_desired: 1,
             requirement:      sample_requirement(DeviceClass::Cpu),
         };
-        json_response::<dlp_api::CreateDeploymentResponse>(
+        json_response::<CreateDeploymentResponse>(
             app(state.clone()),
             post_json("/deployments", &create_request),
         )
         .await;
-        json_response::<dlp_api::RegisterWorkerResponse>(
+        json_response::<RegisterWorkerResponse>(
             app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
         )
@@ -412,7 +422,7 @@ mod tests {
         assert!(
             service
                 .force_last_heartbeat_age(
-                    &dlp_domain::WorkerId::new("worker-1").expect("valid"),
+                    &WorkerId::new("worker-1").expect("valid"),
                     DEFAULT_WORKER_LOST_TIMEOUT + Duration::from_secs(1),
                 )
                 .await
@@ -455,14 +465,14 @@ mod tests {
     }
 
     fn assert_no_raw_sql_outside_allowed_modules(root: &Path) {
-        for entry in fs::read_dir(root).expect("source directory should be readable") {
-            let entry = entry.expect("directory entry should be readable");
+        for dir_entry in fs::read_dir(root).expect("source directory should be readable") {
+            let entry = dir_entry.expect("directory entry should be readable");
             let path = entry.path();
             if path.is_dir() {
                 assert_no_raw_sql_outside_allowed_modules(&path);
                 continue;
             }
-            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
+            if path.extension().and_then(OsStr::to_str) != Some("rs") {
                 continue;
             }
             let relative = path
@@ -478,18 +488,15 @@ mod tests {
             let source = fs::read_to_string(&path).expect("source file should be readable");
             assert!(
                 !source.contains("Statement::from_string("),
-                "unexpected raw SQL builder in {}",
-                relative_str
+                "unexpected raw SQL builder in {relative_str}"
             );
             assert!(
                 !source.contains("execute_unprepared("),
-                "unexpected unprepared SQL in {}",
-                relative_str
+                "unexpected unprepared SQL in {relative_str}"
             );
             assert!(
                 !source.contains("SELECT nextval("),
-                "unexpected sequence SQL in {}",
-                relative_str
+                "unexpected sequence SQL in {relative_str}"
             );
         }
     }

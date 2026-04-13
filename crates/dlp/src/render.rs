@@ -1,6 +1,10 @@
-use dlp_api::{DeploymentDto, ReplicaDto, WorkerDto};
+use dlp_api::{
+    deployments::DeploymentDto,
+    replicas::ReplicaDto,
+    workers::WorkerDto,
+};
 
-pub fn format_deployment(deployment: &DeploymentDto) -> String {
+pub(crate) fn format_deployment(deployment: &DeploymentDto) -> String {
     format!(
         "{} ({}) artifact={} desired={} pending={} assigned={} pulling={} starting={} ready={} \
          failed={} stopped={}",
@@ -18,7 +22,7 @@ pub fn format_deployment(deployment: &DeploymentDto) -> String {
     )
 }
 
-pub fn format_replica(replica: ReplicaDto) -> String {
+pub(crate) fn format_replica(replica: ReplicaDto) -> String {
     let worker = replica.worker_id.unwrap_or_else(|| "unassigned".to_owned());
     let lease = replica.lease_id.unwrap_or_else(|| "none".to_owned());
     let message = replica
@@ -31,7 +35,7 @@ pub fn format_replica(replica: ReplicaDto) -> String {
     )
 }
 
-pub fn format_worker(worker: WorkerDto) -> String {
+pub(crate) fn format_worker(worker: WorkerDto) -> String {
     let capabilities = worker
         .capabilities
         .into_iter()

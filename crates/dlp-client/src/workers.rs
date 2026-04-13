@@ -1,20 +1,28 @@
 use dlp_api::{
-    HealthResponse, ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse,
-    WorkerHeartbeatRequest, WorkerHeartbeatResponse,
+    health::StatusDto,
+    workers::{
+        ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse,
+        WorkerHeartbeatRequest, WorkerHeartbeatResponse,
+    },
 };
 
 use crate::{errors::ClientError, transport::DlpClient};
 
-pub trait WorkersClientExt {
-    async fn health_check(&self) -> Result<HealthResponse, ClientError>;
+/// Worker endpoints exposed by the API client.
+pub trait Client {
+    /// Calls the health-check endpoint.
+    async fn health_check(&self) -> Result<StatusDto, ClientError>;
 
+    /// Lists registered workers.
     async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError>;
 
+    /// Registers or refreshes a worker.
     async fn register_worker(
         &self,
         request: &RegisterWorkerRequest,
     ) -> Result<RegisterWorkerResponse, ClientError>;
 
+    /// Sends a worker heartbeat and receives assignments.
     async fn heartbeat_worker(
         &self,
         worker_id: &str,
@@ -22,8 +30,8 @@ pub trait WorkersClientExt {
     ) -> Result<WorkerHeartbeatResponse, ClientError>;
 }
 
-impl WorkersClientExt for DlpClient {
-    async fn health_check(&self) -> Result<HealthResponse, ClientError> {
+impl Client for DlpClient {
+    async fn health_check(&self) -> Result<StatusDto, ClientError> {
         self.get_json(format!("{}/health", self.base_url())).await
     }
 
