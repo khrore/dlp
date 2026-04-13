@@ -370,56 +370,75 @@ impl StorageBackend for PostgresStorage {
         &self,
         worker_id: &WorkerId,
         worker_state: WorkerState,
-    ) -> Result<Option<(Worker, Vec<WorkerAssignmentDto>)>> {
+    ) -> Result<Option<Worker>> {
         let worker_id = worker_id.clone();
         self.db
-            .transaction::<_, Option<(Worker, Vec<WorkerAssignmentDto>)>, ControlPlaneError>(
-                |txn| {
-                    Box::pin(async move {
-                        let Some(worker_model) =
-                            worker_entity::Entity::find_by_id(worker_id.to_string())
-                                .one(txn)
-                                .await?
-                        else {
-                            return Ok(None);
-                        };
-
-                        let assignment_models = worker_assignment::Entity::find()
-                            .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
-                            .filter(worker_assignment::Column::DeliveryState.eq("queued"))
-                            .order_by_asc(worker_assignment::Column::CreatedAt)
-                            .order_by_asc(worker_assignment::Column::Id)
-                            .all(txn)
-                            .await?;
-                        let assignments = assignment_models
-                            .iter()
-                            .map(worker_assignment::Model::payload)
-                            .collect::<Result<Vec<_>>>()?;
-                        worker_assignment::Entity::delete_many()
-                            .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
-                            .exec(txn)
-                            .await?;
-
-                        let mut active_worker = worker_model.into_active_model();
-                        active_worker.state = Set(worker_state.to_string());
-                        let now = Utc::now();
-                        active_worker.last_heartbeat_at = Set(now);
-                        active_worker.updated_at = Set(now);
-                        active_worker.update(txn).await?;
-
-                        let capabilities =
-                            load_worker_capabilities(txn, worker_id.as_str()).await?;
-                        let worker = worker_entity::Entity::find_by_id(worker_id.to_string())
+            .transaction::<_, Option<Worker>, ControlPlaneError>(|txn| {
+                Box::pin(async move {
+                    let Some(worker_model) =
+                        worker_entity::Entity::find_by_id(worker_id.to_string())
                             .one(txn)
                             .await?
-                            .ok_or_else(|| ControlPlaneError::WorkerDisappearedDuringHeartbeat {
-                                worker_id: worker_id.to_string(),
-                            })?
-                            .into_domain(capabilities)?;
-                        Ok(Some((worker, assignments)))
-                    })
-                },
-            )
+                    else {
+                        return Ok(None);
+                    };
+
+                    let mut active_worker = worker_model.into_active_model();
+                    active_worker.state = Set(worker_state.to_string());
+                    let now = Utc::now();
+                    active_worker.last_heartbeat_at = Set(now);
+                    active_worker.updated_at = Set(now);
+                    active_worker.update(txn).await?;
+
+                    let capabilities = load_worker_capabilities(txn, worker_id.as_str()).await?;
+                    let worker = worker_entity::Entity::find_by_id(worker_id.to_string())
+                        .one(txn)
+                        .await?
+                        .ok_or_else(|| ControlPlaneError::WorkerDisappearedDuringHeartbeat {
+                            worker_id: worker_id.to_string(),
+                        })?
+                        .into_domain(capabilities)?;
+                    Ok(Some(worker))
+                })
+            })
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn take_worker_assignments(
+        &self,
+        worker_id: &WorkerId,
+    ) -> Result<Option<Vec<WorkerAssignmentDto>>> {
+        let worker_id = worker_id.clone();
+        self.db
+            .transaction::<_, Option<Vec<WorkerAssignmentDto>>, ControlPlaneError>(|txn| {
+                Box::pin(async move {
+                    if worker_entity::Entity::find_by_id(worker_id.to_string())
+                        .one(txn)
+                        .await?
+                        .is_none()
+                    {
+                        return Ok(None);
+                    }
+
+                    let assignment_models = worker_assignment::Entity::find()
+                        .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
+                        .filter(worker_assignment::Column::DeliveryState.eq("queued"))
+                        .order_by_asc(worker_assignment::Column::CreatedAt)
+                        .order_by_asc(worker_assignment::Column::Id)
+                        .all(txn)
+                        .await?;
+                    let assignments = assignment_models
+                        .iter()
+                        .map(worker_assignment::Model::payload)
+                        .collect::<Result<Vec<_>>>()?;
+                    worker_assignment::Entity::delete_many()
+                        .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
+                        .exec(txn)
+                        .await?;
+                    Ok(Some(assignments))
+                })
+            })
             .await
             .map_err(Into::into)
     }

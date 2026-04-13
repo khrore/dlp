@@ -139,13 +139,18 @@ impl ControlPlaneService {
             .0
             .heartbeat_worker(worker_id, worker_state)
             .await?;
-        self.refresh_worker_summaries().await?;
-        match result {
-            None => Ok(None),
-            Some((_, assignments)) => {
-                let worker_record = self.state.0.worker(worker_id).await?;
-                Ok(worker_record.map(|worker| (worker, assignments)))
-            }
+        if result.is_none() {
+            Ok(None)
+        } else {
+            self.reconcile_once().await?;
+            let assignments = self
+                .state
+                .0
+                .take_worker_assignments(worker_id)
+                .await?
+                .unwrap_or_default();
+            let worker_record = self.state.0.worker(worker_id).await?;
+            Ok(worker_record.map(|worker| (worker, assignments)))
         }
     }
 

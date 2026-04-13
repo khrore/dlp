@@ -9,6 +9,14 @@ pub enum DomainError {
     /// A required string field was blank after trimming.
     #[error("{0} cannot be empty")]
     EmptyValue(&'static str),
+    /// A value failed domain validation.
+    #[error("invalid {field}: {value}")]
+    InvalidValue {
+        /// The logical field or identifier kind that failed validation.
+        field: &'static str,
+        /// The rejected value.
+        value: String,
+    },
     /// An entity attempted to move between incompatible lifecycle states.
     #[error("invalid {entity} state transition from {from} to {to}")]
     InvalidStateTransition {

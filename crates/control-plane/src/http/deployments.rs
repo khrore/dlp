@@ -28,6 +28,10 @@ pub(super) async fn create_deployment(
     let service = ControlPlaneService::new(state.clone());
     let deployment = service.create_deployment(request).await?;
     service.reconcile_once().await?;
+    let (deployment, _) = service
+        .get_deployment(deployment.id())
+        .await?
+        .ok_or_else(|| HttpError::NotFound(format!("unknown deployment: {}", deployment.id())))?;
     Ok(Json(CreateDeploymentResponse {
         deployment: mappers::deployment_to_dto(&deployment),
     }))

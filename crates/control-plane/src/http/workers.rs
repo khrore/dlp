@@ -28,12 +28,11 @@ pub(super) async fn heartbeat_worker(
     Json(request): Json<WorkerHeartbeatRequest>,
 ) -> Result<Json<WorkerHeartbeatResponse>, HttpError> {
     let worker_id = WorkerId::new(worker_id)?;
-    let service = ControlPlaneService::new(state.clone());
+    let service = ControlPlaneService::new(state);
     let (worker, assignments) = service
         .heartbeat_worker(&worker_id, mappers::worker_state_from_dto(request.state))
         .await?
         .ok_or_else(|| HttpError::NotFound(format!("unknown worker: {worker_id}")))?;
-    service.reconcile_once().await?;
 
     Ok(Json(WorkerHeartbeatResponse {
         acknowledged: true,

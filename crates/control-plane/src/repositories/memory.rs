@@ -241,16 +241,27 @@ impl StorageBackend for MemoryStorage {
         &self,
         worker_id: &WorkerId,
         worker_state: WorkerState,
-    ) -> Result<Option<(Worker, Vec<WorkerAssignmentDto>)>> {
+    ) -> Result<Option<Worker>> {
         let mut state = self.inner.lock().await;
         let record = match state.workers.get_mut(worker_id) {
             Some(record) => record,
             None => return Ok(None),
         };
-        let assignments = record.assignment_queue.drain(..).collect();
         record.last_heartbeat_at = Instant::now();
         record.worker.set_state(worker_state);
-        Ok(Some((record.worker.clone(), assignments)))
+        Ok(Some(record.worker.clone()))
+    }
+
+    async fn take_worker_assignments(
+        &self,
+        worker_id: &WorkerId,
+    ) -> Result<Option<Vec<WorkerAssignmentDto>>> {
+        let mut state = self.inner.lock().await;
+        let record = match state.workers.get_mut(worker_id) {
+            Some(record) => record,
+            None => return Ok(None),
+        };
+        Ok(Some(record.assignment_queue.drain(..).collect()))
     }
 
     async fn expire_worker(&self, worker_id: &WorkerId, message: &str) -> Result<()> {

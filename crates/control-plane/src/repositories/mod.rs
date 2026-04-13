@@ -162,7 +162,7 @@ pub trait StorageBackend: Send + Sync {
     /// Returns an error when the backend cannot persist the worker record.
     async fn register_worker(&self, worker: Worker, restart_message: &str) -> Result<()>;
 
-    /// Applies a worker heartbeat and returns any queued assignments.
+    /// Applies a worker heartbeat and persists the worker's current state.
     ///
     /// # Errors
     ///
@@ -171,7 +171,17 @@ pub trait StorageBackend: Send + Sync {
         &self,
         worker_id: &WorkerId,
         worker_state: WorkerState,
-    ) -> Result<Option<(Worker, Vec<WorkerAssignmentDto>)>>;
+    ) -> Result<Option<Worker>>;
+
+    /// Drains queued assignments for a worker in delivery order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the backend cannot read or clear the queue.
+    async fn take_worker_assignments(
+        &self,
+        worker_id: &WorkerId,
+    ) -> Result<Option<Vec<WorkerAssignmentDto>>>;
 
     /// Marks a worker as expired and updates any affected replicas.
     ///

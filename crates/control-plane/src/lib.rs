@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ready_worker_receives_assignment_on_next_heartbeat() {
+    async fn ready_worker_receives_assignment_on_same_heartbeat() {
         let state = new_shared_state();
         let create_request = CreateDeploymentRequest {
             name:             "trainer".to_owned(),
@@ -302,18 +302,9 @@ mod tests {
             }),
         )
         .await;
-        let second = json_response::<WorkerHeartbeatResponse>(
-            app(state),
-            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
-                state: WorkerState::Ready,
-            }),
-        )
-        .await;
 
         assert_eq!(first.0, StatusCode::OK);
-        assert_eq!(first.1.map(|response| response.assignments.len()), Some(0));
-        assert_eq!(second.0, StatusCode::OK);
-        assert_eq!(second.1.map(|response| response.assignments.len()), Some(1));
+        assert_eq!(first.1.map(|response| response.assignments.len()), Some(1));
     }
 
     #[tokio::test]
@@ -357,8 +348,8 @@ mod tests {
             .1,
         );
 
-        assert!(first_pending_assignment.is_none());
-        assert!(second_pending_assignment.is_some());
+        assert!(first_pending_assignment.is_some());
+        assert!(second_pending_assignment.is_none());
 
         let (status, replicas) =
             json_response::<ListReplicasResponse>(app(state), get_request("/replicas")).await;
@@ -393,13 +384,6 @@ mod tests {
         json_response::<RegisterWorkerResponse>(
             app(state.clone()),
             post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
-        )
-        .await;
-        json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
-            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
-                state: WorkerState::Ready,
-            }),
         )
         .await;
         let assignment = first_assignment(
@@ -460,13 +444,6 @@ mod tests {
             }),
         )
         .await;
-        json_response::<WorkerHeartbeatResponse>(
-            app(state.clone()),
-            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
-                state: WorkerState::Ready,
-            }),
-        )
-        .await;
 
         let service = ControlPlaneService::new(state.clone());
         assert!(
@@ -497,6 +474,90 @@ mod tests {
             deployment.map(|response| response.deployment.status.stopped_replicas),
             Some(1)
         );
+    }
+
+    #[tokio::test]
+    async fn create_deployment_returns_post_reconcile_status() {
+        let state = new_shared_state();
+        json_response::<RegisterWorkerResponse>(
+            app(state.clone()),
+            post_json("/workers/register", &worker_request(DeviceClass::Cpu, 1)),
+        )
+        .await;
+        json_response::<WorkerHeartbeatResponse>(
+            app(state.clone()),
+            post_json("/workers/worker-1/heartbeat", &WorkerHeartbeatRequest {
+                state: WorkerState::Ready,
+            }),
+        )
+        .await;
+
+        let create_request = CreateDeploymentRequest {
+            name:             "trainer".to_owned(),
+            artifact_ref:     "artifact://model".to_owned(),
+            replicas_desired: 1,
+            requirement:      sample_requirement(DeviceClass::Cpu),
+        };
+        let (create_status, created) = json_response::<CreateDeploymentResponse>(
+            app(state.clone()),
+            post_json("/deployments", &create_request),
+        )
+        .await;
+
+        assert_eq!(create_status, StatusCode::OK);
+        assert_eq!(
+            created
+                .as_ref()
+                .map(|response| response.deployment.status.assigned_replicas),
+            Some(1)
+        );
+        assert_eq!(
+            created
+                .as_ref()
+                .map(|response| response.deployment.status.pending_replicas),
+            Some(0)
+        );
+
+        let deployment_id = created
+            .as_ref()
+            .map(|response| response.deployment.id.clone())
+            .unwrap_or_default();
+        let (get_status, fetched) = json_response::<GetDeploymentResponse>(
+            app(state),
+            get_request(&format!("/deployments/{deployment_id}")),
+        )
+        .await;
+
+        assert_eq!(get_status, StatusCode::OK);
+        assert_eq!(
+            created.map(|response| response.deployment),
+            fetched.map(|response| response.deployment)
+        );
+    }
+
+    #[tokio::test]
+    async fn register_worker_rejects_transport_unsafe_worker_id() {
+        let state = new_shared_state();
+        let (status, response) = json_response::<RegisterWorkerResponse>(
+            app(state),
+            post_json("/workers/register", &RegisterWorkerRequest {
+                worker_id:    "worker/1".to_owned(),
+                display_name: "trainer-1".to_owned(),
+                capabilities: vec![WorkerCapabilityDto {
+                    framework:              Framework::Pytorch,
+                    mode:                   WorkloadMode::Training,
+                    device:                 DeviceClass::Cpu,
+                    accelerator_runtime:    "cpu".to_owned(),
+                    architecture_family:    "generic".to_owned(),
+                    available_memory_bytes: 8192,
+                    concurrency_slots:      1,
+                }],
+            }),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(response.is_none());
     }
 
     #[test]
