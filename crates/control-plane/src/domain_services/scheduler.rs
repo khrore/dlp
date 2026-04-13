@@ -1,7 +1,5 @@
 use dlp_domain::{
-    leases::Lease,
-    requirements::{WorkerCapability, WorkloadRequirement},
-    workers::Worker,
+    Lease, Worker, WorkerCapability, WorkloadRequirement,
 };
 
 pub(crate) fn capability_matches(

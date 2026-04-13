@@ -8,11 +8,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    deployments::Deployment,
-    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
-    leases::{Lease, LeaseState},
-    replicas::{Replica, ReplicaState},
-    workers::{Worker, WorkerState},
+    Deployment, DeploymentId, Lease, LeaseId, LeaseState, Replica, ReplicaId, ReplicaState,
+    Worker, WorkerId, WorkerState,
 };
 use tokio::sync::Mutex;
 

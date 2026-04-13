@@ -8,12 +8,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    deployments::Deployment,
-    errors::DomainError,
-    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
-    leases::Lease,
-    replicas::{Replica, ReplicaState},
-    workers::{Worker, WorkerState},
+    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
+    Worker, WorkerId, WorkerState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

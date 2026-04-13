@@ -4,10 +4,7 @@ use dlp_api::{
     shared::WorkloadRequirementDto,
 };
 use dlp_client::{
-    deployments::Client as _,
-    replicas::Client as _,
-    transport::DlpClient,
-    workers::Client as _,
+    DeploymentsClient as _, DlpClient, ReplicasClient as _, WorkersClient as _,
 };
 
 use crate::{

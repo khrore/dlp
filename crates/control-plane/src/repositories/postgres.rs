@@ -5,17 +5,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    artifacts::ArtifactRef,
-    deployments::{Deployment, DeploymentStatusSummary},
-    errors::DomainResult,
-    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
-    leases::{Lease, LeaseState},
-    replicas::{Replica, ReplicaState},
-    requirements::{
-        ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkerCapability, WorkloadMode,
-        WorkloadRequirement,
-    },
-    workers::{Worker, WorkerState},
+    ArchitectureFamily, ArtifactRef, Deployment, DeploymentId, DeploymentStatusSummary,
+    DeviceClass, DomainResult, Framework, Lease, LeaseId, LeaseState, Replica, ReplicaId,
+    ReplicaState, RuntimeName, Worker, WorkerCapability, WorkerId, WorkerState, WorkloadMode,
+    WorkloadRequirement,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,

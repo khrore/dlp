@@ -7,10 +7,7 @@ use dlp_api::{
     deployments::{CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse},
     replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest},
 };
-use dlp_domain::{
-    errors::DomainError,
-    ids::{DeploymentId, ReplicaId},
-};
+use dlp_domain::{DeploymentId, DomainError, ReplicaId};
 use serde::Deserialize;
 
 use crate::{

@@ -2,7 +2,7 @@ use dlp_api::deployments::{
     CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse,
 };
 
-use crate::{errors::ClientError, transport::DlpClient};
+use crate::{ClientError, DlpClient};
 
 /// Deployment endpoints exposed by the API client.
 pub trait Client {

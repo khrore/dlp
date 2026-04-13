@@ -6,7 +6,7 @@ use dlp_api::{
     },
 };
 
-use crate::{errors::ClientError, transport::DlpClient};
+use crate::{ClientError, DlpClient};
 
 /// Worker endpoints exposed by the API client.
 pub trait Client {

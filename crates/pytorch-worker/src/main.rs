@@ -20,9 +20,7 @@ use dlp_api::{
     },
 };
 use dlp_client::{
-    replicas::Client as _,
-    transport::DlpClient,
-    workers::Client as _,
+    DlpClient, ReplicasClient as _, WorkersClient as _,
 };
 use tokio::{
     sync::Mutex,

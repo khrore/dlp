@@ -7,13 +7,8 @@ use dlp_api::{
     workers::{RegisterWorkerRequest, WorkerAssignmentDto},
 };
 use dlp_domain::{
-    deployments::Deployment,
-    errors::DomainError,
-    ids::{DeploymentId, LeaseId, ReplicaId, WorkerId},
-    leases::Lease,
-    replicas::{Replica, ReplicaState},
-    requirements::WorkloadRequirement,
-    workers::{Worker, WorkerState},
+    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
+    Worker, WorkerId, WorkerState, WorkloadRequirement,
 };
 
 use crate::{

@@ -7,7 +7,7 @@ use dlp_api::workers::{
     ListWorkersResponse, RegisterWorkerRequest, RegisterWorkerResponse, WorkerHeartbeatRequest,
     WorkerHeartbeatResponse,
 };
-use dlp_domain::{errors::DomainError, ids::WorkerId};
+use dlp_domain::{DomainError, WorkerId};
 
 use crate::{
     application::{ControlPlaneService, SharedState},

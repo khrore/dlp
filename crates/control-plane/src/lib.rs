@@ -89,7 +89,7 @@ mod tests {
             WorkerHeartbeatResponse, WorkerState,
         },
     };
-    use dlp_domain::ids::WorkerId;
+    use dlp_domain::WorkerId;
     use serde::de::DeserializeOwned;
     use tower::util::ServiceExt as _;
 

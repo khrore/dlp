@@ -1,6 +1,6 @@
 use dlp_api::replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest};
 
-use crate::{errors::ClientError, transport::DlpClient};
+use crate::{ClientError, DlpClient};
 
 /// Replica endpoints exposed by the API client.
 pub trait Client {

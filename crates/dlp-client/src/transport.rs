@@ -1,6 +1,6 @@
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::errors::ClientError;
+use crate::ClientError;
 
 #[derive(Debug, Clone)]
 pub struct DlpClient {
@@ -22,7 +22,7 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
+    async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
     where
         Response: DeserializeOwned,
     {
@@ -36,7 +36,7 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(crate) async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
+    async fn get_json<Response>(&self, url: String) -> Result<Response, ClientError>
     where
         Response: DeserializeOwned,
     {
@@ -49,7 +49,7 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) async fn post_json<Request, Response>(
+    async fn post_json<Request, Response>(
         &self,
         url: String,
         request: &Request,
@@ -69,7 +69,7 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(crate) async fn post_json<Request, Response>(
+    async fn post_json<Request, Response>(
         &self,
         url: String,
         request: &Request,

@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use dlp_client::transport::DlpClient;
+use dlp_client::DlpClient;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 use crate::{

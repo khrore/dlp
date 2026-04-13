@@ -8,16 +8,9 @@ use dlp_api::{
     workers::{WorkerAssignmentDto, WorkerCapabilityDto, WorkerDto, WorkerState as WorkerStateDto},
 };
 use dlp_domain::{
-    artifacts::ArtifactRef,
-    deployments::{Deployment, DeploymentStatusSummary},
-    errors::DomainResult,
-    replicas::{Replica, ReplicaState},
-    requirements::{
-        ArchitectureFamily, DeviceClass, Framework, RuntimeName, WorkerCapability, WorkloadMode,
-        WorkloadRequirement,
-    },
-    leases::Lease,
-    workers::{Worker, WorkerState},
+    ArchitectureFamily, ArtifactRef, Deployment, DeploymentStatusSummary, DeviceClass,
+    DomainResult, Framework, Lease, Replica, ReplicaState, RuntimeName, Worker, WorkerCapability,
+    WorkerState, WorkloadMode, WorkloadRequirement,
 };
 
 pub(crate) fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {

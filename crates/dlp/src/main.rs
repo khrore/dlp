@@ -8,7 +8,7 @@ mod repl;
 
 use anyhow::Result;
 use clap::Parser;
-use dlp_client::transport::DlpClient;
+use dlp_client::DlpClient;
 use tokio::io::{self, AsyncWriteExt as _};
 
 use crate::{args::Args, commands::execute_command, config::resolve_config, repl::run_repl};

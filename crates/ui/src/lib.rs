@@ -8,7 +8,7 @@
     reason = "The Leptos component macro generates a builder method."
 )]
 use console_error_panic_hook as _;
-use dlp_client::{transport::DlpClient, workers::Client as _};
+use dlp_client::{DlpClient, WorkersClient as _};
 use leptos::{prelude::*, task::spawn_local};
 
 const DEFAULT_STATUS: &str = "Click the button to check server health.";
