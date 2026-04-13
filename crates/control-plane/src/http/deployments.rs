@@ -1,18 +1,18 @@
 use axum::{
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
 };
 use dlp_api::{
     deployments::{CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse},
     replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest},
 };
-use dlp_domain::{DeploymentId, DomainError, ReplicaId};
+use dlp_domain::{DeploymentId, ReplicaId};
 use serde::Deserialize;
 
 use crate::{
     SharedState,
     application::{ControlPlaneService, UpdateReplicaStatusError},
+    http::HttpError,
     mappers,
 };
 
@@ -24,16 +24,10 @@ pub(super) struct ReplicaListQuery {
 pub(super) async fn create_deployment(
     State(state): State<SharedState>,
     Json(request): Json<CreateDeploymentRequest>,
-) -> Result<Json<CreateDeploymentResponse>, (StatusCode, String)> {
+) -> Result<Json<CreateDeploymentResponse>, HttpError> {
     let service = ControlPlaneService::new(state.clone());
-    let deployment = service
-        .create_deployment(request)
-        .await
-        .map_err(map_error)?;
-    service
-        .reconcile_once()
-        .await
-        .map_err(|error| internal_error(&error))?;
+    let deployment = service.create_deployment(request).await?;
+    service.reconcile_once().await?;
     Ok(Json(CreateDeploymentResponse {
         deployment: mappers::deployment_to_dto(&deployment),
     }))
@@ -42,20 +36,13 @@ pub(super) async fn create_deployment(
 pub(super) async fn get_deployment(
     State(state): State<SharedState>,
     Path(deployment_id): Path<String>,
-) -> Result<Json<GetDeploymentResponse>, (StatusCode, String)> {
-    let deployment_id =
-        DeploymentId::new(deployment_id).map_err(|error| invalid_request(&error))?;
+) -> Result<Json<GetDeploymentResponse>, HttpError> {
+    let deployment_id = DeploymentId::new(deployment_id)?;
     let service = ControlPlaneService::new(state);
     let (deployment, replicas) = service
         .get_deployment(&deployment_id)
-        .await
-        .map_err(|error| internal_error(&error))?
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("unknown deployment: {deployment_id}"),
-            )
-        })?;
+        .await?
+        .ok_or_else(|| HttpError::NotFound(format!("unknown deployment: {deployment_id}")))?;
 
     Ok(Json(GetDeploymentResponse {
         deployment: mappers::deployment_to_dto(&deployment),
@@ -66,17 +53,10 @@ pub(super) async fn get_deployment(
 pub(super) async fn list_replicas(
     State(state): State<SharedState>,
     Query(query): Query<ReplicaListQuery>,
-) -> Result<Json<ListReplicasResponse>, (StatusCode, String)> {
-    let deployment_id = query
-        .deployment_id
-        .map(DeploymentId::new)
-        .transpose()
-        .map_err(|error| invalid_request(&error))?;
+) -> Result<Json<ListReplicasResponse>, HttpError> {
+    let deployment_id = query.deployment_id.map(DeploymentId::new).transpose()?;
     let service = ControlPlaneService::new(state);
-    let replicas = service
-        .list_replicas(deployment_id.as_ref())
-        .await
-        .map_err(|error| internal_error(&error))?;
+    let replicas = service.list_replicas(deployment_id.as_ref()).await?;
 
     Ok(Json(ListReplicasResponse {
         replicas: replicas.iter().map(mappers::replica_to_dto).collect(),
@@ -87,43 +67,19 @@ pub(super) async fn update_replica_status(
     State(state): State<SharedState>,
     Path(replica_id): Path<String>,
     Json(request): Json<UpdateReplicaStatusRequest>,
-) -> Result<Json<ReplicaDto>, (StatusCode, String)> {
-    let replica_id = ReplicaId::new(replica_id).map_err(|error| invalid_request(&error))?;
+) -> Result<Json<ReplicaDto>, HttpError> {
+    let replica_id = ReplicaId::new(replica_id)?;
     let service = ControlPlaneService::new(state.clone());
     let replica = service
         .update_replica_status(&replica_id, request)
         .await
         .map_err(|error| match error {
-            UpdateReplicaStatusError::UnknownReplica => (
-                StatusCode::NOT_FOUND,
-                format!("unknown replica: {replica_id}"),
-            ),
-            UpdateReplicaStatusError::LeaseConflict(message) => (StatusCode::CONFLICT, message),
+            UpdateReplicaStatusError::UnknownReplica => {
+                HttpError::NotFound(format!("unknown replica: {replica_id}"))
+            }
+            other @ (UpdateReplicaStatusError::Internal(_)
+            | UpdateReplicaStatusError::LeaseConflict(_)) => HttpError::from(other),
         })?;
-    service
-        .reconcile_once()
-        .await
-        .map_err(|error| internal_error(&error))?;
+    service.reconcile_once().await?;
     Ok(Json(mappers::replica_to_dto(&replica)))
-}
-
-fn invalid_request(error: &impl ToString) -> (StatusCode, String) {
-    (StatusCode::BAD_REQUEST, error.to_string())
-}
-
-fn internal_error(error: &impl ToString) -> (StatusCode, String) {
-    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
-}
-
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "The handler receives the owned anyhow error from map_err and inspects it before \
-              rendering."
-)]
-fn map_error(error: anyhow::Error) -> (StatusCode, String) {
-    if let Some(domain_error) = error.downcast_ref::<DomainError>() {
-        return invalid_request(domain_error);
-    }
-
-    internal_error(&error)
 }

@@ -2,6 +2,7 @@
 
 mod application;
 mod domain_services;
+mod errors;
 mod http;
 mod mappers;
 mod repositories;
@@ -11,7 +12,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow};
 use app_config as _;
 use app_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
 use application::ControlPlaneService;
@@ -25,6 +25,8 @@ use repositories::{
 use sea_orm::{ConnectOptions, Database};
 use sea_orm_migration::MigratorTrait as _;
 use tokio::time::{self, MissedTickBehavior};
+
+pub use self::errors::{ControlPlaneError, Result};
 
 #[doc(hidden)]
 pub mod internal {
@@ -82,9 +84,11 @@ pub async fn new_shared_state_from_config(config: &ControlPlaneConfig) -> Result
     let storage: Arc<dyn RuntimeStorageBackend> = match config.storage.backend {
         ConfigStorageBackend::Memory => Arc::new(MemoryStorage::new()),
         ConfigStorageBackend::Postgres => {
-            let database_url = config.storage.database_url.as_deref().ok_or_else(|| {
-                anyhow!("control_plane.storage.database_url is required for postgres backend")
-            })?;
+            let database_url = config
+                .storage
+                .database_url
+                .as_deref()
+                .ok_or(ControlPlaneError::MissingDatabaseUrl)?;
             let mut options = ConnectOptions::new(database_url.to_owned());
             options.max_connections(config.storage.pool.max_connections);
             options.min_connections(config.storage.pool.min_connections);

@@ -4,7 +4,6 @@ mod postgres;
 
 use std::time::Duration;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
@@ -14,6 +13,7 @@ use dlp_domain::{
 
 /// Internal storage adapters used by the control plane.
 pub use self::{memory::MemoryStorage, migration::Migrator, postgres::PostgresStorage};
+use crate::Result;
 
 /// Result of attempting to apply a replica status transition in storage.
 #[derive(Debug, Clone, PartialEq, Eq)]

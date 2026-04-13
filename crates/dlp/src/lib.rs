@@ -3,6 +3,7 @@
 mod args;
 mod commands;
 mod config;
+mod errors;
 mod render;
 mod repl;
 
@@ -13,6 +14,7 @@ pub use self::{
     },
     commands::execute_command,
     config::resolve_config,
+    errors::{CliError, Result},
     render::{format_deployment, format_replica, format_worker},
     repl::{parse_interactive_command, run_repl},
 };

@@ -2,6 +2,7 @@
 
 use std::{
     collections::HashMap,
+    result::Result as StdResult,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -9,7 +10,6 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use dlp_api::{
     replicas::{ReplicaState, UpdateReplicaStatusRequest},
@@ -27,6 +27,14 @@ use tokio::{
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const LIFECYCLE_STEP_DELAY: Duration = Duration::from_millis(100);
+
+type Result<T> = StdResult<T, WorkerError>;
+
+#[derive(Debug, thiserror::Error)]
+enum WorkerError {
+    #[error(transparent)]
+    Client(#[from] dlp_client::ClientError),
+}
 
 #[derive(Debug, Clone, Parser)]
 #[command(name = "pytorch-worker", about = "Stub PyTorch worker for DLP")]
@@ -227,8 +235,8 @@ async fn process_assignment(
     Ok(())
 }
 
-fn log_assignment_error(error: anyhow::Error) {
-    let _ignored = error;
+fn log_assignment_error(error: WorkerError) {
+    drop(error);
 }
 
 #[cfg(test)]

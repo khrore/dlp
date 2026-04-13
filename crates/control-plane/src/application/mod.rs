@@ -1,18 +1,17 @@
-use std::time::Duration;
+use std::{result::Result as StdResult, time::Duration};
 
-use anyhow::Result;
 use dlp_api::{
     deployments::CreateDeploymentRequest,
     replicas::UpdateReplicaStatusRequest,
     workers::{RegisterWorkerRequest, WorkerAssignmentDto},
 };
 use dlp_domain::{
-    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState, WorkloadProfile, WorkloadRequirement, WorkloadRequirementSpec,
+    Deployment, DeploymentId, Lease, LeaseId, Replica, ReplicaId, ReplicaState, Worker, WorkerId,
+    WorkerState, WorkloadProfile, WorkloadRequirement, WorkloadRequirementSpec,
 };
 
 use crate::{
-    SharedState,
+    ControlPlaneError, Result, SharedState,
     domain_services::{
         reconcile::DEFAULT_WORKER_LOST_TIMEOUT,
         scheduler::{available_capacity_for_requirement, worker_is_eligible},
@@ -29,11 +28,16 @@ pub struct ControlPlaneService {
 }
 
 /// Internal errors produced while applying replica status updates.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error)]
 pub enum UpdateReplicaStatusError {
+    /// An internal control-plane failure occurred while applying the update.
+    #[error(transparent)]
+    Internal(#[from] ControlPlaneError),
     /// The provided lease information conflicts with the stored replica lease.
+    #[error("{0}")]
     LeaseConflict(String),
     /// The requested replica does not exist.
+    #[error("unknown replica")]
     UnknownReplica,
 }
 
@@ -108,16 +112,21 @@ impl ControlPlaneService {
             .capabilities
             .into_iter()
             .map(mappers::capability_from_dto)
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<dlp_domain::DomainResult<Vec<_>>>()?;
         let worker = Worker::new(worker_id.clone(), request.display_name, capabilities);
         self.state
             .0
             .register_worker(worker, "worker restarted before replica completed")
             .await?;
         self.refresh_worker_summaries().await?;
-        self.state.0.worker(&worker_id).await?.ok_or_else(|| {
-            DomainError::LeaseConflict(format!("worker disappeared: {worker_id}")).into()
-        })
+        self.state
+            .0
+            .worker(&worker_id)
+            .await?
+            .ok_or_else(|| ControlPlaneError::UnknownEntity {
+                entity: "worker",
+                id:     worker_id.to_string(),
+            })
     }
 
     pub(super) async fn heartbeat_worker(
@@ -144,7 +153,7 @@ impl ControlPlaneService {
         &self,
         replica_id: &ReplicaId,
         request: UpdateReplicaStatusRequest,
-    ) -> Result<Replica, UpdateReplicaStatusError> {
+    ) -> StdResult<Replica, UpdateReplicaStatusError> {
         let request_lease_id = LeaseId::new(request.lease_id.clone())
             .map_err(|error| UpdateReplicaStatusError::LeaseConflict(error.to_string()))?;
         match self
@@ -156,8 +165,7 @@ impl ControlPlaneService {
                 mappers::replica_state_from_dto(request.state),
                 request.status_message,
             )
-            .await
-            .map_err(|error| UpdateReplicaStatusError::LeaseConflict(error.to_string()))?
+            .await?
         {
             UpdateReplicaStatusResult::Success(replica) => Ok(replica),
             UpdateReplicaStatusResult::UnknownReplica => {

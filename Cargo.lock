@@ -105,6 +105,7 @@ version = "0.1.0"
 dependencies = [
  "figment",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -554,6 +555,7 @@ dependencies = [
  "sea-orm-migration",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "tower",
 ]
@@ -755,12 +757,12 @@ dependencies = [
 name = "dlp"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "app-config",
  "clap",
  "control-plane",
  "dlp-api",
  "dlp-client",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -781,6 +783,7 @@ dependencies = [
  "gloo-net",
  "reqwest",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -788,6 +791,7 @@ name = "dlp-domain"
 version = "0.1.0"
 dependencies = [
  "strum 0.27.2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2292,11 +2296,11 @@ dependencies = [
 name = "pytorch-worker"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
  "control-plane",
  "dlp-api",
  "dlp-client",
+ "thiserror 2.0.18",
  "tokio",
 ]
 

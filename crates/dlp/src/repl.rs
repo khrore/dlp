@@ -1,8 +1,8 @@
-use anyhow::{Result, bail};
 use dlp_client::DlpClient;
 use tokio::io::{self, AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
 
 use crate::{
+    CliError, Result,
     args::{Command, InteractiveCommand},
     commands::execute_command,
 };
@@ -59,10 +59,10 @@ pub async fn run_repl(client: DlpClient) -> Result<()> {
 /// command.
 pub fn parse_interactive_command(input: &str) -> Result<InteractiveCommand> {
     match input.trim() {
-        "" => bail!("enter a command"),
+        "" => Err(CliError::EmptyInteractiveCommand),
         "health" => Ok(InteractiveCommand::Health),
         "help" => Ok(InteractiveCommand::Help),
         "exit" | "quit" => Ok(InteractiveCommand::Exit),
-        other => bail!("unknown command: {other}"),
+        other => Err(CliError::UnknownInteractiveCommand(other.to_owned())),
     }
 }

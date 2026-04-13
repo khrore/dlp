@@ -1,12 +1,11 @@
-use std::{
-    error::Error,
-    fmt::{Display, Formatter, Result as FmtResult},
-};
-
 /// Errors returned by the DLP API client.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ClientError {
     /// The control plane returned a non-success HTTP status.
+    #[error(
+        "request failed with status {code}{suffix}",
+        suffix = http_status_suffix(.body, .body_read_error.as_deref())
+    )]
     HttpStatus {
         /// HTTP status code returned by the server.
         code:            u16,
@@ -16,35 +15,16 @@ pub enum ClientError {
         body_read_error: Option<String>,
     },
     /// A transport-level failure occurred before a valid response was decoded.
+    #[error("transport error: {0}")]
     Transport(String),
 }
 
-impl Display for ClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        match self {
-            Self::Transport(message) => write!(f, "transport error: {message}"),
-            Self::HttpStatus {
-                code,
-                body,
-                body_read_error,
-            } => {
-                if !body.is_empty() {
-                    write!(f, "request failed with status {code}: {body}")
-                } else if let Some(error) = body_read_error {
-                    write!(
-                        f,
-                        "request failed with status {code} (failed to read error body: {error})"
-                    )
-                } else {
-                    write!(f, "request failed with status {code}")
-                }
-            }
-        }
+fn http_status_suffix(body: &str, body_read_error: Option<&str>) -> String {
+    if !body.is_empty() {
+        return format!(": {body}");
     }
+    if let Some(error) = body_read_error {
+        return format!(" (failed to read error body: {error})");
+    }
+    String::new()
 }
-
-#[expect(
-    clippy::missing_trait_methods,
-    reason = "The default std::error::Error methods are sufficient for this value type."
-)]
-impl Error for ClientError {}

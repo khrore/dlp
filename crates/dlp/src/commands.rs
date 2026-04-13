@@ -1,8 +1,8 @@
-use anyhow::Result;
 use dlp_api::{deployments::CreateDeploymentRequest, shared::WorkloadRequirementDto};
 use dlp_client::{DeploymentsClient as _, DlpClient, ReplicasClient as _, WorkersClient as _};
 
 use crate::{
+    Result,
     args::{Command, DeploymentsCommand, ReplicasCommand, WorkersCommand},
     render::{format_deployment, format_replica, format_worker},
 };

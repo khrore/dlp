@@ -1,7 +1,8 @@
 //! Binary entrypoint for the DLP control-plane server.
 
-use std::{error::Error, net::IpAddr};
+use std::net::IpAddr;
 
+#[cfg(test)]
 use anyhow as _;
 use app_config::load_control_plane_config;
 use async_trait as _;
@@ -15,6 +16,7 @@ use sea_orm as _;
 use sea_orm_migration as _;
 use serde as _;
 use serde_json as _;
+use thiserror as _;
 use tokio::net::TcpListener;
 #[cfg(test)]
 use tower as _;
@@ -30,7 +32,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), control_plane::ControlPlaneError> {
     env_logger::init();
 
     let args = Args::parse();

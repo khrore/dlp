@@ -22,7 +22,6 @@
 
 use std::time::Duration;
 
-use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use dlp_api::workers::WorkerAssignmentDto;
@@ -39,11 +38,14 @@ use sea_orm::{
 };
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
-use crate::domain_services::scheduler::available_capacity_for_requirement;
+use crate::{
+    ControlPlaneError, Result, domain_services::scheduler::available_capacity_for_requirement,
+};
 
 mod ids {
-    use anyhow::{Result, anyhow};
     use sea_orm::{ConnectionTrait, DbBackend, Statement};
+
+    use crate::{ControlPlaneError, Result};
 
     const DEPLOYMENT_SEQUENCE: &str = "deployment_id_seq";
     const REPLICA_SEQUENCE: &str = "replica_id_seq";
@@ -84,7 +86,9 @@ mod ids {
         let row = connection
             .query_one(statement)
             .await?
-            .ok_or_else(|| anyhow!("sequence {sequence} returned no row"))?;
+            .ok_or(ControlPlaneError::MissingRow {
+                operation: "sequence nextval query",
+            })?;
         let value: i64 = row.try_get("", "value")?;
         Ok(format!("{prefix}-{value}"))
     }
@@ -131,7 +135,7 @@ impl StorageBackend for PostgresStorage {
         replicas: Vec<Replica>,
     ) -> Result<()> {
         self.db
-            .transaction::<_, (), anyhow::Error>(|txn| {
+            .transaction::<_, (), ControlPlaneError>(|txn| {
                 Box::pin(async move {
                     let now = Utc::now();
                     deployment::ActiveModel::from_domain(&deployment, now)?
@@ -170,12 +174,15 @@ impl StorageBackend for PostgresStorage {
         let existing = deployment::Entity::find_by_id(deployment.id().to_string())
             .one(&self.db)
             .await?
-            .ok_or_else(|| anyhow!("unknown deployment: {}", deployment.id()))?;
+            .ok_or_else(|| ControlPlaneError::UnknownEntity {
+                entity: "deployment",
+                id:     deployment.id().to_string(),
+            })?;
         let mut active = existing.into_active_model();
         let now = Utc::now();
         active.name = Set(deployment.name().to_owned());
         active.artifact_ref = Set(deployment.artifact_ref().to_string());
-        active.replicas_desired = Set(to_i32(deployment.replicas_desired())?);
+        active.replicas_desired = Set(deployment.replicas_desired().try_into()?);
         set_requirement_on_deployment(&mut active, deployment.requirement())?;
         set_status_on_deployment(&mut active, deployment.status())?;
         active.updated_at = Set(now);
@@ -194,7 +201,10 @@ impl StorageBackend for PostgresStorage {
         let existing = replica_entity::Entity::find_by_id(replica.id().to_string())
             .one(&self.db)
             .await?
-            .ok_or_else(|| anyhow!("unknown replica: {}", replica.id()))?;
+            .ok_or_else(|| ControlPlaneError::UnknownEntity {
+                entity: "replica",
+                id:     replica.id().to_string(),
+            })?;
         let mut active = existing.into_active_model();
         active.state = Set(replica.state().to_string());
         active.assigned_worker_id = Set(replica.worker_id().map(ToString::to_string));
@@ -251,7 +261,10 @@ impl StorageBackend for PostgresStorage {
         let existing = lease_entity::Entity::find_by_id(lease.id().to_string())
             .one(&self.db)
             .await?
-            .ok_or_else(|| anyhow!("unknown lease: {}", lease.id()))?;
+            .ok_or_else(|| ControlPlaneError::UnknownEntity {
+                entity: "lease",
+                id:     lease.id().to_string(),
+            })?;
         let mut active = existing.into_active_model();
         active.state = Set(lease.state().to_string());
         active.updated_at = Set(Utc::now());
@@ -319,7 +332,7 @@ impl StorageBackend for PostgresStorage {
     async fn register_worker(&self, worker: Worker, restart_message: &str) -> Result<()> {
         let restart_message = restart_message.to_owned();
         self.db
-            .transaction::<_, (), anyhow::Error>(|txn| {
+            .transaction::<_, (), ControlPlaneError>(|txn| {
                 Box::pin(async move {
                     let worker_id = worker.id().to_string();
                     if worker_entity::Entity::find_by_id(worker_id.clone())
@@ -360,48 +373,53 @@ impl StorageBackend for PostgresStorage {
     ) -> Result<Option<(Worker, Vec<WorkerAssignmentDto>)>> {
         let worker_id = worker_id.clone();
         self.db
-            .transaction::<_, Option<(Worker, Vec<WorkerAssignmentDto>)>, anyhow::Error>(|txn| {
-                Box::pin(async move {
-                    let Some(worker_model) =
-                        worker_entity::Entity::find_by_id(worker_id.to_string())
+            .transaction::<_, Option<(Worker, Vec<WorkerAssignmentDto>)>, ControlPlaneError>(
+                |txn| {
+                    Box::pin(async move {
+                        let Some(worker_model) =
+                            worker_entity::Entity::find_by_id(worker_id.to_string())
+                                .one(txn)
+                                .await?
+                        else {
+                            return Ok(None);
+                        };
+
+                        let assignment_models = worker_assignment::Entity::find()
+                            .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
+                            .filter(worker_assignment::Column::DeliveryState.eq("queued"))
+                            .order_by_asc(worker_assignment::Column::CreatedAt)
+                            .order_by_asc(worker_assignment::Column::Id)
+                            .all(txn)
+                            .await?;
+                        let assignments = assignment_models
+                            .iter()
+                            .map(worker_assignment::Model::payload)
+                            .collect::<Result<Vec<_>>>()?;
+                        worker_assignment::Entity::delete_many()
+                            .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
+                            .exec(txn)
+                            .await?;
+
+                        let mut active_worker = worker_model.into_active_model();
+                        active_worker.state = Set(worker_state.to_string());
+                        let now = Utc::now();
+                        active_worker.last_heartbeat_at = Set(now);
+                        active_worker.updated_at = Set(now);
+                        active_worker.update(txn).await?;
+
+                        let capabilities =
+                            load_worker_capabilities(txn, worker_id.as_str()).await?;
+                        let worker = worker_entity::Entity::find_by_id(worker_id.to_string())
                             .one(txn)
                             .await?
-                    else {
-                        return Ok(None);
-                    };
-
-                    let assignment_models = worker_assignment::Entity::find()
-                        .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
-                        .filter(worker_assignment::Column::DeliveryState.eq("queued"))
-                        .order_by_asc(worker_assignment::Column::CreatedAt)
-                        .order_by_asc(worker_assignment::Column::Id)
-                        .all(txn)
-                        .await?;
-                    let assignments = assignment_models
-                        .iter()
-                        .map(worker_assignment::Model::payload)
-                        .collect::<Result<Vec<_>>>()?;
-                    worker_assignment::Entity::delete_many()
-                        .filter(worker_assignment::Column::WorkerId.eq(worker_id.to_string()))
-                        .exec(txn)
-                        .await?;
-
-                    let mut active_worker = worker_model.into_active_model();
-                    active_worker.state = Set(worker_state.to_string());
-                    let now = Utc::now();
-                    active_worker.last_heartbeat_at = Set(now);
-                    active_worker.updated_at = Set(now);
-                    active_worker.update(txn).await?;
-
-                    let capabilities = load_worker_capabilities(txn, worker_id.as_str()).await?;
-                    let worker = worker_entity::Entity::find_by_id(worker_id.to_string())
-                        .one(txn)
-                        .await?
-                        .ok_or_else(|| anyhow!("worker disappeared during heartbeat: {worker_id}"))?
-                        .into_domain(capabilities)?;
-                    Ok(Some((worker, assignments)))
-                })
-            })
+                            .ok_or_else(|| ControlPlaneError::WorkerDisappearedDuringHeartbeat {
+                                worker_id: worker_id.to_string(),
+                            })?
+                            .into_domain(capabilities)?;
+                        Ok(Some((worker, assignments)))
+                    })
+                },
+            )
             .await
             .map_err(Into::into)
     }
@@ -410,7 +428,7 @@ impl StorageBackend for PostgresStorage {
         let worker_id = worker_id.clone();
         let message = message.to_owned();
         self.db
-            .transaction::<_, (), anyhow::Error>(|txn| {
+            .transaction::<_, (), ControlPlaneError>(|txn| {
                 Box::pin(async move { expire_worker_in_txn(txn, &worker_id, &message).await })
             })
             .await
@@ -427,7 +445,7 @@ impl StorageBackend for PostgresStorage {
         let replica_id = replica_id.clone();
         let worker_id = worker_id.clone();
         self.db
-            .transaction::<_, bool, anyhow::Error>(|txn| {
+            .transaction::<_, bool, ControlPlaneError>(|txn| {
                 Box::pin(async move {
                     let Some(replica_model) =
                         replica_entity::Entity::find_by_id(replica_id.to_string())
@@ -505,7 +523,7 @@ impl StorageBackend for PostgresStorage {
         let replica_id = replica_id.clone();
         let lease_id = lease_id.clone();
         self.db
-            .transaction::<_, UpdateReplicaStatusResult, anyhow::Error>(|txn| {
+            .transaction::<_, UpdateReplicaStatusResult, ControlPlaneError>(|txn| {
                 Box::pin(async move {
                     let Some(replica_model) =
                         replica_entity::Entity::find_by_id(replica_id.to_string())
@@ -583,10 +601,13 @@ impl StorageBackend for PostgresStorage {
         let existing = worker_entity::Entity::find_by_id(worker_id.to_string())
             .one(&self.db)
             .await?
-            .ok_or_else(|| anyhow!("unknown worker: {worker_id}"))?;
+            .ok_or_else(|| ControlPlaneError::UnknownEntity {
+                entity: "worker",
+                id:     worker_id.to_string(),
+            })?;
         let mut active = existing.into_active_model();
-        active.assigned_replicas = Set(to_i32(assigned_replicas)?);
-        active.available_slots = Set(to_i32(available_slots)?);
+        active.assigned_replicas = Set(assigned_replicas.try_into()?);
+        active.available_slots = Set(available_slots.try_into()?);
         active.updated_at = Set(Utc::now());
         active.update(&self.db).await?;
         Ok(())
@@ -692,7 +713,10 @@ async fn recompute_deployment_summary(
     let existing = deployment::Entity::find_by_id(deployment_id.to_string())
         .one(txn)
         .await?
-        .ok_or_else(|| anyhow!("unknown deployment for summary refresh: {deployment_id}"))?;
+        .ok_or_else(|| ControlPlaneError::UnknownEntity {
+            entity: "deployment for summary refresh",
+            id:     deployment_id.to_string(),
+        })?;
     let mut active = existing.into_active_model();
     set_status_on_deployment(&mut active, &summary)?;
     active.updated_at = Set(Utc::now());
@@ -733,8 +757,8 @@ async fn recompute_worker_summary(txn: &DatabaseTransaction, worker_id: &WorkerI
         })
         .fold(0, u32::saturating_add);
     let mut active = worker_model.into_active_model();
-    active.assigned_replicas = Set(to_i32(u32::try_from(leases.len())?)?);
-    active.available_slots = Set(to_i32(available_slots)?);
+    active.assigned_replicas = Set(u32::try_from(leases.len())?.try_into()?);
+    active.available_slots = Set(available_slots.try_into()?);
     active.updated_at = Set(Utc::now());
     active.update(txn).await?;
     Ok(())
@@ -768,30 +792,25 @@ where
         .collect()
 }
 
-fn to_i32(value: u32) -> Result<i32> {
-    i32::try_from(value).context("value does not fit into i32")
-}
-
-fn to_i64(value: u64) -> Result<i64> {
-    i64::try_from(value).context("value does not fit into i64")
-}
-
 fn parse_framework(value: &str) -> Result<Framework> {
-    value
-        .parse()
-        .map_err(|_| anyhow!("invalid framework: {value}"))
+    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
+        entity: "framework",
+        value:  value.to_owned(),
+    })
 }
 
 fn parse_mode(value: &str) -> Result<WorkloadMode> {
-    value
-        .parse()
-        .map_err(|_| anyhow!("invalid workload mode: {value}"))
+    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
+        entity: "workload mode",
+        value:  value.to_owned(),
+    })
 }
 
 fn parse_device(value: &str) -> Result<DeviceClass> {
-    value
-        .parse()
-        .map_err(|_| anyhow!("invalid device class: {value}"))
+    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
+        entity: "device class",
+        value:  value.to_owned(),
+    })
 }
 
 fn parse_worker_state(value: &str) -> Result<WorkerState> {
@@ -801,7 +820,10 @@ fn parse_worker_state(value: &str) -> Result<WorkerState> {
         "ready" => Ok(WorkerState::Ready),
         "starting" => Ok(WorkerState::Starting),
         "unhealthy" => Ok(WorkerState::Unhealthy),
-        _ => Err(anyhow!("invalid worker state: {value}")),
+        _ => Err(ControlPlaneError::InvalidValue {
+            entity: "worker state",
+            value:  value.to_owned(),
+        }),
     }
 }
 
@@ -814,7 +836,10 @@ fn parse_replica_state(value: &str) -> Result<ReplicaState> {
         "ready" => Ok(ReplicaState::Ready),
         "starting" => Ok(ReplicaState::Starting),
         "stopped" => Ok(ReplicaState::Stopped),
-        _ => Err(anyhow!("invalid replica state: {value}")),
+        _ => Err(ControlPlaneError::InvalidValue {
+            entity: "replica state",
+            value:  value.to_owned(),
+        }),
     }
 }
 
@@ -823,7 +848,10 @@ fn parse_lease_state(value: &str) -> Result<LeaseState> {
         "active" => Ok(LeaseState::Active),
         "expired" => Ok(LeaseState::Expired),
         "released" => Ok(LeaseState::Released),
-        _ => Err(anyhow!("invalid lease state: {value}")),
+        _ => Err(ControlPlaneError::InvalidValue {
+            entity: "lease state",
+            value:  value.to_owned(),
+        }),
     }
 }
 
@@ -836,8 +864,8 @@ fn set_requirement_on_deployment(
     active.device = Set(requirement.device().to_string());
     active.accelerator_runtime = Set(requirement.accelerator_runtime().to_string());
     active.architecture_family = Set(requirement.architecture_family().to_string());
-    active.memory_requirement_bytes = Set(to_i64(requirement.memory_requirement_bytes())?);
-    active.concurrency_requirement = Set(to_i32(requirement.concurrency_requirement())?);
+    active.memory_requirement_bytes = Set(requirement.memory_requirement_bytes().try_into()?);
+    active.concurrency_requirement = Set(requirement.concurrency_requirement().try_into()?);
     Ok(())
 }
 
@@ -845,13 +873,13 @@ fn set_status_on_deployment(
     active: &mut deployment::ActiveModel,
     status: &DeploymentStatusSummary,
 ) -> Result<()> {
-    active.pending_replicas = Set(to_i32(status.pending_replicas())?);
-    active.assigned_replicas = Set(to_i32(status.assigned_replicas())?);
-    active.pulling_replicas = Set(to_i32(status.pulling_replicas())?);
-    active.starting_replicas = Set(to_i32(status.starting_replicas())?);
-    active.ready_replicas = Set(to_i32(status.ready_replicas())?);
-    active.failed_replicas = Set(to_i32(status.failed_replicas())?);
-    active.stopped_replicas = Set(to_i32(status.stopped_replicas())?);
+    active.pending_replicas = Set(status.pending_replicas().try_into()?);
+    active.assigned_replicas = Set(status.assigned_replicas().try_into()?);
+    active.pulling_replicas = Set(status.pulling_replicas().try_into()?);
+    active.starting_replicas = Set(status.starting_replicas().try_into()?);
+    active.ready_replicas = Set(status.ready_replicas().try_into()?);
+    active.failed_replicas = Set(status.failed_replicas().try_into()?);
+    active.stopped_replicas = Set(status.stopped_replicas().try_into()?);
     Ok(())
 }
 
@@ -1042,25 +1070,27 @@ impl deployment::ActiveModel {
             id: Set(deployment.id().to_string()),
             name: Set(deployment.name().to_owned()),
             artifact_ref: Set(deployment.artifact_ref().to_string()),
-            replicas_desired: Set(to_i32(deployment.replicas_desired())?),
+            replicas_desired: Set(deployment.replicas_desired().try_into()?),
             framework: Set(deployment.requirement().framework().to_string()),
             mode: Set(deployment.requirement().mode().to_string()),
             device: Set(deployment.requirement().device().to_string()),
             accelerator_runtime: Set(deployment.requirement().accelerator_runtime().to_string()),
             architecture_family: Set(deployment.requirement().architecture_family().to_string()),
-            memory_requirement_bytes: Set(to_i64(
-                deployment.requirement().memory_requirement_bytes(),
-            )?),
-            concurrency_requirement: Set(to_i32(
-                deployment.requirement().concurrency_requirement(),
-            )?),
-            pending_replicas: Set(to_i32(deployment.status().pending_replicas())?),
-            assigned_replicas: Set(to_i32(deployment.status().assigned_replicas())?),
-            pulling_replicas: Set(to_i32(deployment.status().pulling_replicas())?),
-            starting_replicas: Set(to_i32(deployment.status().starting_replicas())?),
-            ready_replicas: Set(to_i32(deployment.status().ready_replicas())?),
-            failed_replicas: Set(to_i32(deployment.status().failed_replicas())?),
-            stopped_replicas: Set(to_i32(deployment.status().stopped_replicas())?),
+            memory_requirement_bytes: Set(deployment
+                .requirement()
+                .memory_requirement_bytes()
+                .try_into()?),
+            concurrency_requirement: Set(deployment
+                .requirement()
+                .concurrency_requirement()
+                .try_into()?),
+            pending_replicas: Set(deployment.status().pending_replicas().try_into()?),
+            assigned_replicas: Set(deployment.status().assigned_replicas().try_into()?),
+            pulling_replicas: Set(deployment.status().pulling_replicas().try_into()?),
+            starting_replicas: Set(deployment.status().starting_replicas().try_into()?),
+            ready_replicas: Set(deployment.status().ready_replicas().try_into()?),
+            failed_replicas: Set(deployment.status().failed_replicas().try_into()?),
+            stopped_replicas: Set(deployment.status().stopped_replicas().try_into()?),
             created_at: Set(now),
             updated_at: Set(now),
         })
@@ -1140,8 +1170,14 @@ impl lease_entity::ActiveModel {
             device: Set(lease.requirement().device().to_string()),
             accelerator_runtime: Set(lease.requirement().accelerator_runtime().to_string()),
             architecture_family: Set(lease.requirement().architecture_family().to_string()),
-            memory_requirement_bytes: Set(to_i64(lease.requirement().memory_requirement_bytes())?),
-            concurrency_requirement: Set(to_i32(lease.requirement().concurrency_requirement())?),
+            memory_requirement_bytes: Set(lease
+                .requirement()
+                .memory_requirement_bytes()
+                .try_into()?),
+            concurrency_requirement: Set(lease
+                .requirement()
+                .concurrency_requirement()
+                .try_into()?),
             created_at: Set(now),
             updated_at: Set(now),
         })
@@ -1213,8 +1249,8 @@ impl worker_capability::ActiveModel {
             device:                 Set(capability.device().to_string()),
             accelerator_runtime:    Set(capability.accelerator_runtime().to_string()),
             architecture_family:    Set(capability.architecture_family().to_string()),
-            available_memory_bytes: Set(to_i64(capability.available_memory_bytes())?),
-            concurrency_slots:      Set(to_i32(capability.concurrency_slots())?),
+            available_memory_bytes: Set(capability.available_memory_bytes().try_into()?),
+            concurrency_slots:      Set(capability.concurrency_slots().try_into()?),
             created_at:             Set(now),
         })
     }

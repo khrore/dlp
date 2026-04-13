@@ -1,7 +1,6 @@
-use anyhow::Result;
 use app_config::{DlpConfig, load_dlp_config};
 
-use crate::args::Args;
+use crate::{Result, args::Args};
 
 /// Resolves the effective client configuration from file configuration and CLI
 /// overrides.

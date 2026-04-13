@@ -1,16 +1,16 @@
 //! Thin executable wrapper around the `dlp` library crate.
 
-use anyhow::Result;
 use app_config as _;
 #[cfg(test)]
 use control_plane as _;
 use dlp::{Args, execute_command, resolve_config, run_repl};
 use dlp_api as _;
 use dlp_client::DlpClient;
+use thiserror as _;
 use tokio::io::{self, AsyncWriteExt as _};
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), dlp::CliError> {
     let args = <Args as clap::Parser>::parse();
     let command = args.command.clone();
     let client = DlpClient::new(resolve_config(&args)?.api.base_url());

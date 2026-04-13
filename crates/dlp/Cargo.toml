@@ -14,10 +14,10 @@ workspace = true
 
 [dependencies]
 app-config = { path = "../app-config" }
-anyhow.workspace = true
 clap.workspace = true
 dlp-api = { path = "../dlp-api" }
 dlp-client = { path = "../dlp-client" }
+thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

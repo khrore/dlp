@@ -2,6 +2,7 @@
 
 use std::{
     env,
+    io::Error as IoError,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
@@ -17,7 +18,15 @@ const DEFAULT_LOCALHOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 3000;
 
 /// Error type returned when configuration extraction fails.
-pub type ConfigError = Box<figment::Error>;
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    /// Reading the current working directory failed.
+    #[error("failed to read current working directory")]
+    CurrentDir(#[source] IoError),
+    /// Figment could not extract the requested configuration.
+    #[error("failed to load configuration")]
+    Extract(#[from] Box<figment::Error>),
+}
 
 /// Host and port for a socket listener.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -246,12 +255,14 @@ fn env_provider(prefix: &str, section: &str) -> Env {
 }
 
 fn extract_from_figment(figment: &Figment) -> Result<RootConfig, ConfigError> {
-    figment.extract::<RootConfig>().map_err(Box::new)
+    figment
+        .extract::<RootConfig>()
+        .map_err(Box::new)
+        .map_err(Into::into)
 }
 
 fn extract_root_config() -> Result<RootConfig, ConfigError> {
-    let current_dir =
-        env::current_dir().map_err(|error| Box::new(figment::Error::from(error.to_string())))?;
+    let current_dir = env::current_dir().map_err(ConfigError::CurrentDir)?;
     extract_root_config_from_dir(&current_dir)
 }
 

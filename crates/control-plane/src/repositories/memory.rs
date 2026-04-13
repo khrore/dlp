@@ -17,7 +17,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Result;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
@@ -27,6 +26,7 @@ use dlp_domain::{
 use tokio::sync::Mutex;
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
+use crate::Result;
 
 #[derive(Debug, Clone)]
 /// In-memory storage backend used for tests and local execution.
