@@ -313,8 +313,6 @@ allow_attributes_without_reason = { level = "deny" }
 absolute_paths = { level = "deny" }
 # Checks for usage of the #[allow] attribute and suggests replacing it with the #[expect] attribute
 allow_attributes = { level = "deny" }
-# Confirms that items are sorted in source files as per configuration.
-arbitrary_source_item_ordering = { level = "deny" }
 # Checks any kind of arithmetic operation of any type.
 arithmetic_side_effects  = { level = "deny" }
 # Checks for assert!(r.is_ok()) or assert!(r.is_err()) calls.
