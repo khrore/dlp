@@ -255,8 +255,6 @@ integer_division = { level = "warn" }
 integer_division_remainder_used = { level = "warn" }
 # Including large files via `include_bytes!` or `include_str!`
 large_include_file = { level = "warn" }
-# Missing `#[inline]` on public items
-missing_inline_in_public_items = { level = "warn" }
 # Use of the remainder operator (`%`) that can panic
 modulo_arithmetic = { level = "warn" }
 # Unnecessary use of raw strings

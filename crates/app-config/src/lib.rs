@@ -29,7 +29,6 @@ pub struct HostPortConfig {
 }
 
 impl Default for HostPortConfig {
-    #[inline]
     fn default() -> Self {
         Self {
             host: IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -40,7 +39,6 @@ impl Default for HostPortConfig {
 
 impl HostPortConfig {
     /// Builds a socket address from the configured host and port.
-    #[inline]
     #[must_use]
     pub fn socket_addr(&self) -> SocketAddr {
         SocketAddr::from((self.host, self.port))
@@ -62,7 +60,6 @@ pub struct EndpointConfig {
 }
 
 impl Default for EndpointConfig {
-    #[inline]
     fn default() -> Self {
         Self {
             host:   default_localhost(),
@@ -74,7 +71,6 @@ impl Default for EndpointConfig {
 
 impl EndpointConfig {
     /// Returns the normalized base URL for the configured endpoint.
-    #[inline]
     #[must_use]
     pub fn base_url(&self) -> String {
         let host = match self.host.parse::<IpAddr>() {
@@ -169,7 +165,6 @@ struct RootConfig {
 ///
 /// Returns an error if the current working directory cannot be read or if
 /// configuration extraction fails.
-#[inline]
 pub fn load_control_plane_config() -> Result<ControlPlaneConfig, ConfigError> {
     extract_root_config().map(|config| config.control_plane)
 }
@@ -180,7 +175,6 @@ pub fn load_control_plane_config() -> Result<ControlPlaneConfig, ConfigError> {
 ///
 /// Returns an error if the current working directory cannot be read or if
 /// configuration extraction fails.
-#[inline]
 pub fn load_dlp_config() -> Result<DlpConfig, ConfigError> {
     extract_root_config().map(|config| config.dlp)
 }
@@ -191,7 +185,6 @@ pub fn load_dlp_config() -> Result<DlpConfig, ConfigError> {
 ///
 /// Returns an error if the current working directory cannot be read or if
 /// configuration extraction fails.
-#[inline]
 pub fn load_ui_config() -> Result<UiConfig, ConfigError> {
     extract_root_config().map(|config| config.ui)
 }
@@ -201,13 +194,11 @@ pub fn load_ui_config() -> Result<UiConfig, ConfigError> {
 /// # Errors
 ///
 /// Returns an error if configuration extraction fails.
-#[inline]
 pub fn load_ui_config_from_dir(start_dir: &Path) -> Result<UiConfig, ConfigError> {
     extract_root_config_from_dir(start_dir).map(|config| config.ui)
 }
 
 /// Finds the nearest `config.toml` visible from `start_dir`.
-#[inline]
 #[must_use]
 pub fn find_config_path_from_dir(start_dir: &Path) -> Option<PathBuf> {
     find_config_path(start_dir)

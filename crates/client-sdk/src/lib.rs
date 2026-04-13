@@ -15,7 +15,6 @@ pub struct HealthResponse {
 }
 
 impl HealthResponse {
-    #[inline]
     pub fn ok<Service>(service: Service) -> Self
     where
         Service: Into<String>,
@@ -133,7 +132,6 @@ pub struct DeploymentStatusSummary {
 
 impl DeploymentStatusSummary {
     #[must_use]
-    #[inline]
     pub const fn new() -> Self {
         Self {
             pending_replicas:  0,
@@ -148,7 +146,6 @@ impl DeploymentStatusSummary {
 }
 
 impl Default for DeploymentStatusSummary {
-    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -275,7 +272,6 @@ pub enum ClientError {
 }
 
 impl FmtDisplay for ClientError {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::Transport(message) => write!(f, "transport error: {message}"),
@@ -312,13 +308,11 @@ pub struct DlpClient {
 
 impl DlpClient {
     #[must_use]
-    #[inline]
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn create_deployment(
         &self,
         request: &CreateDeploymentRequest,
@@ -327,7 +321,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn create_deployment(
         &self,
         request: &CreateDeploymentRequest,
@@ -336,19 +329,16 @@ impl DlpClient {
     }
 
     #[must_use]
-    #[inline]
     pub fn deployment_url(&self, deployment_id: &str) -> String {
         format!("{}/{}", self.deployments_url(), deployment_id)
     }
 
     #[must_use]
-    #[inline]
     pub fn deployments_url(&self) -> String {
         format!("{}/deployments", self.base_url)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn get_deployment(
         &self,
         deployment_id: &str,
@@ -357,7 +347,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn get_deployment(
         &self,
         deployment_id: &str,
@@ -393,25 +382,21 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
         self.get_json(self.health_url()).await
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn health_check(&self) -> Result<HealthResponse, ClientError> {
         self.get_json(self.health_url()).await
     }
 
     #[must_use]
-    #[inline]
     pub fn health_url(&self) -> String {
         format!("{}/health", self.base_url)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn heartbeat_worker(
         &self,
         worker_id: &str,
@@ -422,7 +407,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn heartbeat_worker(
         &self,
         worker_id: &str,
@@ -433,7 +417,6 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn list_replicas(
         &self,
         deployment_id: Option<&str>,
@@ -446,7 +429,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn list_replicas(
         &self,
         deployment_id: Option<&str>,
@@ -459,18 +441,15 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
         self.get_json(self.workers_url()).await
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn list_workers(&self) -> Result<ListWorkersResponse, ClientError> {
         self.get_json(self.workers_url()).await
     }
 
-    #[inline]
     pub fn new<BaseUrl>(base_url: BaseUrl) -> Self
     where
         BaseUrl: Into<String>,
@@ -523,7 +502,6 @@ impl DlpClient {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn register_worker(
         &self,
         request: &RegisterWorkerRequest,
@@ -532,7 +510,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn register_worker(
         &self,
         request: &RegisterWorkerRequest,
@@ -541,25 +518,21 @@ impl DlpClient {
     }
 
     #[must_use]
-    #[inline]
     pub fn register_worker_url(&self) -> String {
         format!("{}/register", self.workers_url())
     }
 
     #[must_use]
-    #[inline]
     pub fn replica_status_url(&self, replica_id: &str) -> String {
         format!("{}/{replica_id}/status", self.replicas_url())
     }
 
     #[must_use]
-    #[inline]
     pub fn replicas_url(&self) -> String {
         format!("{}/replicas", self.base_url)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    #[inline]
     pub async fn update_replica_status(
         &self,
         replica_id: &str,
@@ -570,7 +543,6 @@ impl DlpClient {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[inline]
     pub async fn update_replica_status(
         &self,
         replica_id: &str,
@@ -581,13 +553,11 @@ impl DlpClient {
     }
 
     #[must_use]
-    #[inline]
     pub fn worker_heartbeat_url(&self, worker_id: &str) -> String {
         format!("{}/{worker_id}/heartbeat", self.workers_url())
     }
 
     #[must_use]
-    #[inline]
     pub fn workers_url(&self) -> String {
         format!("{}/workers", self.base_url)
     }

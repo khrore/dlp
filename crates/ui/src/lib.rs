@@ -8,7 +8,6 @@
     reason = "The Leptos component macro generates a builder method."
 )]
 #![expect(
-    clippy::missing_inline_in_public_items,
     clippy::must_use_candidate,
     reason = "The Leptos component macro expands the public component function."
 )]
@@ -21,7 +20,6 @@ const DEFAULT_STATUS: &str = "Click the button to check server health.";
 const API_BASE_URL: &str = env!("DLP_UI_API_BASE_URL");
 
 /// Renders the main application shell.
-#[inline]
 #[must_use]
 #[component]
 pub fn App() -> impl IntoView {
