@@ -1,8 +1,6 @@
 //! Binary entrypoint for the DLP UI crate.
-#![expect(
-    clippy::absolute_paths,
-    reason = "Qualified standard-library paths are acceptable in this small entrypoint."
-)]
+#[cfg(not(target_arch = "wasm32"))]
+use std::process::ExitCode;
 
 use console_error_panic_hook as _;
 use dlp_client as _;
@@ -20,7 +18,7 @@ fn main() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> std::process::ExitCode {
+fn main() -> ExitCode {
     use std::io::{self, Write as _};
 
     let mut stderr = io::stderr().lock();
@@ -33,5 +31,5 @@ fn main() -> std::process::ExitCode {
         .as_bytes(),
     );
 
-    std::process::ExitCode::FAILURE
+    ExitCode::FAILURE
 }

@@ -1,16 +1,8 @@
 //! Build script for injecting UI configuration into the WASM frontend.
-#![expect(
-    clippy::absolute_paths,
-    reason = "Using qualified paths keeps the build script dependency-free."
-)]
-#![expect(
-    clippy::missing_docs_in_private_items,
-    reason = "The build script has a single local helper."
-)]
-
 use std::{
     env,
     error::Error,
+    fmt,
     io::{self, Write as _},
     path::Path,
 };
@@ -44,7 +36,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn emit_cargo_directive(args: std::fmt::Arguments<'_>) -> io::Result<()> {
+/// Writes one Cargo build-script directive to stdout.
+fn emit_cargo_directive(args: fmt::Arguments<'_>) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
     stdout.write_fmt(args)
 }

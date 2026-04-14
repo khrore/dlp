@@ -1,14 +1,12 @@
+use async_trait::async_trait;
 use dlp_api::replicas::{ListReplicasResponse, ReplicaDto, UpdateReplicaStatusRequest};
 
 use super::DlpClient;
 use crate::ClientError;
 
 /// Replica endpoints exposed by the API client.
-#[expect(
-    async_fn_in_trait,
-    reason = "These traits are consumed internally by this workspace and do not need Send future \
-              guarantees."
-)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Client {
     /// Lists replicas, optionally filtered by deployment id.
     async fn list_replicas(
@@ -24,6 +22,8 @@ pub trait Client {
     ) -> Result<ReplicaDto, ClientError>;
 }
 
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Client for DlpClient {
     async fn list_replicas(
         &self,

@@ -2,14 +2,6 @@
     clippy::significant_drop_tightening,
     reason = "Mutex guard scopes are intentionally explicit around storage mutations."
 )]
-#![expect(
-    clippy::manual_let_else,
-    reason = "The current shape keeps the in-memory repository branches easier to scan."
-)]
-#![expect(
-    clippy::collapsible_if,
-    reason = "The nested branch documents the exceptional path more clearly in this adapter."
-)]
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -243,9 +235,8 @@ impl StorageBackend for MemoryStorage {
         worker_state: WorkerState,
     ) -> Result<Option<Worker>> {
         let mut state = self.inner.lock().await;
-        let record = match state.workers.get_mut(worker_id) {
-            Some(record) => record,
-            None => return Ok(None),
+        let Some(record) = state.workers.get_mut(worker_id) else {
+            return Ok(None);
         };
         record.last_heartbeat_at = Instant::now();
         record.worker.set_state(worker_state);
@@ -257,9 +248,8 @@ impl StorageBackend for MemoryStorage {
         worker_id: &WorkerId,
     ) -> Result<Option<Vec<WorkerAssignmentDto>>> {
         let mut state = self.inner.lock().await;
-        let record = match state.workers.get_mut(worker_id) {
-            Some(record) => record,
-            None => return Ok(None),
+        let Some(record) = state.workers.get_mut(worker_id) else {
+            return Ok(None);
         };
         Ok(Some(record.assignment_queue.drain(..).collect()))
     }
@@ -343,10 +333,9 @@ impl StorageBackend for MemoryStorage {
         if matches!(
             replica.state(),
             ReplicaState::Failed | ReplicaState::Stopped
-        ) {
-            if let Some(lease) = memory.leases.get_mut(lease_id) {
-                lease.release();
-            }
+        ) && let Some(lease) = memory.leases.get_mut(lease_id)
+        {
+            lease.release();
         }
         Ok(UpdateReplicaStatusResult::Success(updated_replica))
     }

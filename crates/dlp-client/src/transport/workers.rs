@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use dlp_api::{
     health::StatusDto,
     workers::{
@@ -10,11 +11,8 @@ use super::DlpClient;
 use crate::ClientError;
 
 /// Worker endpoints exposed by the API client.
-#[expect(
-    async_fn_in_trait,
-    reason = "These traits are consumed internally by this workspace and do not need Send future \
-              guarantees."
-)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Client {
     /// Calls the health-check endpoint.
     async fn health_check(&self) -> Result<StatusDto, ClientError>;
@@ -36,6 +34,8 @@ pub trait Client {
     ) -> Result<WorkerHeartbeatResponse, ClientError>;
 }
 
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Client for DlpClient {
     async fn health_check(&self) -> Result<StatusDto, ClientError> {
         self.get_json(format!("{}/health", self.base_url())).await

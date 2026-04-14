@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use dlp_api::deployments::{
     CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse,
 };
@@ -6,11 +7,8 @@ use super::DlpClient;
 use crate::ClientError;
 
 /// Deployment endpoints exposed by the API client.
-#[expect(
-    async_fn_in_trait,
-    reason = "These traits are consumed internally by this workspace and do not need Send future \
-              guarantees."
-)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Client {
     /// Creates a deployment.
     async fn create_deployment(
@@ -25,6 +23,8 @@ pub trait Client {
     ) -> Result<GetDeploymentResponse, ClientError>;
 }
 
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Client for DlpClient {
     async fn create_deployment(
         &self,

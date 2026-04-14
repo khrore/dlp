@@ -1,8 +1,4 @@
 #![expect(
-    clippy::missing_const_for_fn,
-    reason = "These tiny mapping helpers stay non-const for readability and consistency."
-)]
-#![expect(
     clippy::needless_pass_by_value,
     reason = "DTO and enum mapping helpers intentionally consume owned values from request/ORM \
               layers."
@@ -37,7 +33,9 @@ pub fn deployment_to_dto(deployment: &Deployment) -> DeploymentDto {
 }
 
 /// Maps a domain deployment status summary into its API DTO representation.
-pub fn deployment_status_to_dto(status: &DeploymentStatusSummary) -> DeploymentStatusSummaryDto {
+pub const fn deployment_status_to_dto(
+    status: &DeploymentStatusSummary,
+) -> DeploymentStatusSummaryDto {
     DeploymentStatusSummaryDto {
         assigned_replicas: status.assigned_replicas(),
         failed_replicas:   status.failed_replicas(),
@@ -170,7 +168,7 @@ pub fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
 }
 
 /// Maps an API replica state into the domain replica state.
-pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
+pub const fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
     match state {
         ReplicaStateDto::Assigned => ReplicaState::Assigned,
         ReplicaStateDto::Failed => ReplicaState::Failed,
@@ -183,7 +181,7 @@ pub fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
 }
 
 /// Maps an API worker state into the domain worker state.
-pub fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
+pub const fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
     match state {
         WorkerStateDto::Draining => WorkerState::Draining,
         WorkerStateDto::Lost => WorkerState::Lost,
@@ -193,7 +191,7 @@ pub fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
     }
 }
 
-fn replica_state_to_dto(state: &ReplicaState) -> ReplicaStateDto {
+const fn replica_state_to_dto(state: &ReplicaState) -> ReplicaStateDto {
     match state {
         ReplicaState::Assigned => ReplicaStateDto::Assigned,
         ReplicaState::Failed => ReplicaStateDto::Failed,
@@ -205,7 +203,7 @@ fn replica_state_to_dto(state: &ReplicaState) -> ReplicaStateDto {
     }
 }
 
-fn worker_state_to_dto(state: &WorkerState) -> WorkerStateDto {
+const fn worker_state_to_dto(state: &WorkerState) -> WorkerStateDto {
     match state {
         WorkerState::Draining => WorkerStateDto::Draining,
         WorkerState::Lost => WorkerStateDto::Lost,
@@ -215,35 +213,35 @@ fn worker_state_to_dto(state: &WorkerState) -> WorkerStateDto {
     }
 }
 
-fn framework_to_dto(value: &Framework) -> FrameworkDto {
+const fn framework_to_dto(value: &Framework) -> FrameworkDto {
     match value {
         Framework::Max => FrameworkDto::Max,
         Framework::Pytorch => FrameworkDto::Pytorch,
     }
 }
 
-fn framework_from_dto(value: FrameworkDto) -> Framework {
+const fn framework_from_dto(value: FrameworkDto) -> Framework {
     match value {
         FrameworkDto::Max => Framework::Max,
         FrameworkDto::Pytorch => Framework::Pytorch,
     }
 }
 
-fn mode_to_dto(value: &WorkloadMode) -> WorkloadModeDto {
+const fn mode_to_dto(value: &WorkloadMode) -> WorkloadModeDto {
     match value {
         WorkloadMode::Inference => WorkloadModeDto::Inference,
         WorkloadMode::Training => WorkloadModeDto::Training,
     }
 }
 
-fn mode_from_dto(value: WorkloadModeDto) -> WorkloadMode {
+const fn mode_from_dto(value: WorkloadModeDto) -> WorkloadMode {
     match value {
         WorkloadModeDto::Inference => WorkloadMode::Inference,
         WorkloadModeDto::Training => WorkloadMode::Training,
     }
 }
 
-fn device_to_dto(value: &DeviceClass) -> DeviceClassDto {
+const fn device_to_dto(value: &DeviceClass) -> DeviceClassDto {
     match value {
         DeviceClass::AppleGpu => DeviceClassDto::AppleGpu,
         DeviceClass::Cpu => DeviceClassDto::Cpu,
@@ -252,7 +250,7 @@ fn device_to_dto(value: &DeviceClass) -> DeviceClassDto {
     }
 }
 
-fn device_from_dto(value: DeviceClassDto) -> DeviceClass {
+const fn device_from_dto(value: DeviceClassDto) -> DeviceClass {
     match value {
         DeviceClassDto::AppleGpu => DeviceClass::AppleGpu,
         DeviceClassDto::Cpu => DeviceClass::Cpu,

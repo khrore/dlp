@@ -747,6 +747,7 @@ dependencies = [
 name = "dlp-client"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dlp-api",
  "gloo-net",
  "reqwest",
