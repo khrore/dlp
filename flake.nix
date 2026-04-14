@@ -115,6 +115,16 @@
           version = "0.1.0";
         };
 
+        nativeRuntimeInputs = [
+          rustToolchain
+          pkgs.stdenv.cc
+        ] ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
+
+        darwinNativeEnv = lib.optionalString pkgs.stdenv.isDarwin ''
+          export MACOSX_DEPLOYMENT_TARGET=14.0
+          export LIBRARY_PATH="${pkgs.libiconv}/lib''${LIBRARY_PATH:+:$LIBRARY_PATH}"
+        '';
+
         nativeCommonArgs = commonArgs // {
           src = workspaceSrc;
           cargoExtraArgs = "--workspace --exclude ui";
@@ -191,8 +201,9 @@
 
         fmt = pkgs.writeShellApplication {
           name = "fmt";
-          runtimeInputs = [ rustToolchain ];
+          runtimeInputs = nativeRuntimeInputs;
           text = ''
+            ${darwinNativeEnv}
             if [ ! -f "$PWD/Cargo.toml" ]; then
               echo "fmt must be run from the repository root" >&2
               exit 1
@@ -203,8 +214,9 @@
 
         clippy = pkgs.writeShellApplication {
           name = "clippy";
-          runtimeInputs = [ rustToolchain ];
+          runtimeInputs = nativeRuntimeInputs;
           text = ''
+            ${darwinNativeEnv}
             if [ ! -f "$PWD/Cargo.toml" ]; then
               echo "clippy must be run from the repository root" >&2
               exit 1
@@ -215,8 +227,9 @@
 
         test = pkgs.writeShellApplication {
           name = "test";
-          runtimeInputs = [ rustToolchain ];
+          runtimeInputs = nativeRuntimeInputs;
           text = ''
+            ${darwinNativeEnv}
             if [ ! -f "$PWD/Cargo.toml" ]; then
               echo "test must be run from the repository root" >&2
               exit 1
@@ -227,8 +240,9 @@
 
         build = pkgs.writeShellApplication {
           name = "build";
-          runtimeInputs = [ rustToolchain ];
+          runtimeInputs = nativeRuntimeInputs;
           text = ''
+            ${darwinNativeEnv}
             if [ ! -f "$PWD/Cargo.toml" ]; then
               echo "build must be run from the repository root" >&2
               exit 1
