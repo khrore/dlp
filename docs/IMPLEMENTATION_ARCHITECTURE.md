@@ -12,13 +12,13 @@ The concrete V1 storage design for metadata and artifacts is defined in `docs/ST
 
 Runtime-relevant workspace units:
 
-- `control-plane` from `crates/control-plane`: public API, desired state, scheduler module, and worker-gateway module
+- `dlp-control-plane` from `crates/dlp-control-plane`: public API, desired state, scheduler module, and worker-gateway module
 - `dlp-domain` from `crates/dlp-domain`: core domain model and invariants used by the control plane
 - `dlp-api` from `crates/dlp-api`: shared request and response DTOs for HTTP and worker APIs
 - `dlp-client` from `crates/dlp-client`: shared HTTP transport used by the CLI, UI, and worker binaries
 - `dlp` from `crates/dlp`: CLI and REPL client
 - future shared worker-agent library or module: generic lifecycle, heartbeats, leases, and process supervision
-- current `pytorch-worker` from `crates/pytorch-worker`: a stub worker binary that exercises the worker protocol and simulates a `PyTorchProvider` lifecycle on `cpu`, `cuda`, and later `rocm` nodes
+- current `dlp-worker-pytorch` from `crates/dlp-worker-pytorch`: a stub worker binary that exercises the worker protocol and simulates a `PyTorchProvider` lifecycle on `cpu`, `cuda`, and later `rocm` nodes
 - future `max-worker`: a thin binary that embeds the shared worker agent plus the MAX runtime provider
 
 For V1, `scheduler`, `artifact-service`, and `worker-gateway` should remain internal modules inside the `control-plane` deployable. Split them into separate services only after scale or isolation needs are proven.
@@ -274,8 +274,8 @@ Suggested rollout order:
 
 | Phase | New crate or module | Responsibility | Exit criterion |
 | --- | --- | --- | --- |
-| 1 | `crates/control-plane` scheduler and worker-gateway modules | placement, leases, heartbeats, command dispatch | control plane can assign work to one worker and track lifecycle state |
+| 1 | `crates/dlp-control-plane` scheduler and worker-gateway modules | placement, leases, heartbeats, command dispatch | control plane can assign work to one worker and track lifecycle state |
 | 2 | `crates/dlp-api` plus `crates/dlp-client` | shared API DTOs and HTTP transport for CLI, UI, and workers | clients can submit deployments and inspect worker and replica state |
-| 3 | `crates/pytorch-worker` | worker agent plus `PyTorchProvider` for training and simple inference on `cpu` and `cuda`, with the same provider contract ready for `rocm` | one node can run and supervise multiple PyTorch instances |
+| 3 | `crates/dlp-worker-pytorch` | worker agent plus `PyTorchProvider` for training and simple inference on `cpu` and `cuda`, with the same provider contract ready for `rocm` | one node can run and supervise multiple PyTorch instances |
 | 4 | `crates/max-worker` | worker agent plus `MaxProvider` for optimized inference | one node can run and supervise multiple MAX replicas |
-| 5 | `crates/control-plane` mixed-fleet scheduling policies | schedule across PyTorch and MAX workers with capability and accelerator stack checks | control plane can place training and inference workloads across a small worker pool with `cuda` and `rocm` aware placement |
+| 5 | `crates/dlp-control-plane` mixed-fleet scheduling policies | schedule across PyTorch and MAX workers with capability and accelerator stack checks | control plane can place training and inference workloads across a small worker pool with `cuda` and `rocm` aware placement |

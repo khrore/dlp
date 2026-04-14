@@ -12,11 +12,11 @@ use std::{
     sync::Arc,
 };
 
-use app_config as _;
-use app_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
 use application::ControlPlaneService;
 use axum::Router;
 use clap as _;
+use dlp_config as _;
+use dlp_config::{ControlPlaneConfig, StorageBackend as ConfigStorageBackend};
 use env_logger as _;
 use log as _;
 use repositories::{
@@ -229,7 +229,7 @@ mod tests {
         let (status, payload) = json_response::<StatusDto>(app(state), request).await;
 
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(payload, Some(StatusDto::ok("control-plane")));
+        assert_eq!(payload, Some(StatusDto::ok("dlp-control-plane")));
     }
 
     #[tokio::test]

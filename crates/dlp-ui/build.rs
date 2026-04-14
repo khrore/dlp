@@ -15,7 +15,7 @@ use std::{
     path::Path,
 };
 
-use app_config::{find_config_path_from_dir, load_ui_config_from_dir};
+use dlp_config::{find_config_path_from_dir, load_ui_config_from_dir};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;

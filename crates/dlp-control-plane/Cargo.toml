@@ -1,5 +1,5 @@
 [package]
-name = "control-plane"
+name = "dlp-control-plane"
 version.workspace = true
 edition.workspace = true
 description = "Axum-based control plane server for DLP."
@@ -13,7 +13,7 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-app-config = { path = "../app-config" }
+dlp-config = { path = "../dlp-config" }
 async-trait.workspace = true
 axum.workspace = true
 chrono.workspace = true

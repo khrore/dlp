@@ -1,13 +1,13 @@
 [workspace]
 members = [
-    "crates/app-config",
-    "crates/control-plane",
+    "crates/dlp-config",
+    "crates/dlp-control-plane",
     "crates/dlp-api",
     "crates/dlp-client",
     "crates/dlp-domain",
     "crates/dlp",
-    "crates/pytorch-worker",
-    "crates/ui",
+    "crates/dlp-worker-pytorch",
+    "crates/dlp-ui",
 ]
 resolver = "2"
 

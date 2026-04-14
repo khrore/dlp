@@ -37,7 +37,7 @@ enum WorkerError {
 }
 
 #[derive(Debug, Clone, Parser)]
-#[command(name = "pytorch-worker", about = "Stub PyTorch worker for DLP")]
+#[command(name = "dlp-worker-pytorch", about = "Stub PyTorch worker for DLP")]
 struct Args {
     #[arg(long, default_value = "cpu")]
     accelerator_runtime: String,
@@ -241,8 +241,8 @@ fn log_assignment_error(error: WorkerError) {
 
 #[cfg(test)]
 mod tests {
-    use control_plane as _;
     use dlp_api::replicas::ReplicaState;
+    use dlp_control_plane as _;
 
     use super::{FailureMode, LifecycleStep, RuntimeProvider as _, SimulatedProvider};
 

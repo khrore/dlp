@@ -36,7 +36,7 @@ pub fn router(state: SharedState) -> Router {
 }
 
 async fn health() -> Json<StatusDto> {
-    Json(StatusDto::ok("control-plane"))
+    Json(StatusDto::ok("dlp-control-plane"))
 }
 
 #[derive(Debug, thiserror::Error)]

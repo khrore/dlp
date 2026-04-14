@@ -127,12 +127,12 @@ If partial indexes or equivalent PostgreSQL features are used, they should optim
 
 ## Control-Plane Integration
 
-The current control plane already uses repository traits in `crates/control-plane/src/repositories/mod.rs` and a concrete in-memory implementation in `crates/control-plane/src/repositories/memory.rs`. V1 storage should preserve that repository pattern and replace the concrete persistence backend behind it.
+The current control plane already uses repository traits in `crates/dlp-control-plane/src/repositories/mod.rs` and a concrete in-memory implementation in `crates/dlp-control-plane/src/repositories/memory.rs`. V1 storage should preserve that repository pattern and replace the concrete persistence backend behind it.
 
 Required integration direction:
 
 - preserve the repository boundaries for deployments, replicas, leases, and workers
-- replace the direct `MemoryStore` dependency in `crates/control-plane/src/application/mod.rs` with a storage abstraction or repository-backed shared state
+- replace the direct `MemoryStore` dependency in `crates/dlp-control-plane/src/application/mod.rs` with a storage abstraction or repository-backed shared state
 - keep the in-memory store available for tests and fast local-only scenarios
 - make PostgreSQL the default durable runtime path for the control plane
 

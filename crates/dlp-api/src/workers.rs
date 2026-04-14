@@ -126,8 +126,8 @@ mod tests {
 
     #[test]
     fn health_ok_response_uses_expected_defaults() {
-        assert_eq!(StatusDto::ok("control-plane"), StatusDto {
-            service: "control-plane".to_owned(),
+        assert_eq!(StatusDto::ok("dlp-control-plane"), StatusDto {
+            service: "dlp-control-plane".to_owned(),
             status:  "ok".to_owned(),
         });
     }

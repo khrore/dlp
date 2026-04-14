@@ -1,7 +1,7 @@
 use std::{io::Error as IoError, num::TryFromIntError, result::Result as StdResult};
 
-use app_config::ConfigError;
 use chrono::OutOfRangeError;
+use dlp_config::ConfigError;
 use dlp_domain::DomainError;
 use sea_orm::{DbErr, TransactionError};
 

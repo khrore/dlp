@@ -22,12 +22,12 @@ pub use self::{
 #[cfg(test)]
 mod tests {
     use clap::Parser as _;
-    use control_plane as _;
     use dlp_api::{
         deployments::{DeploymentDto, DeploymentStatusSummaryDto},
         replicas::{ReplicaDto, ReplicaState},
         shared::{DeviceClass, Framework, WorkloadMode, WorkloadRequirementDto},
     };
+    use dlp_control_plane as _;
 
     use super::{
         Args, Command, DeploymentsCommand, InteractiveCommand, ReplicasCommand,

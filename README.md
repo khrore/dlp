@@ -75,7 +75,7 @@ The execution plane consists of independent workers. Each worker owns one runtim
 
 Examples:
 
-- `pytorch-worker`
+- `dlp-worker-pytorch`
 - `jax-worker`
 - `mlx-worker`
 - `max-worker`
@@ -214,7 +214,7 @@ This gives one platform with multiple operator experiences instead of separate p
 
 An initial service layout can be:
 
-- `control-plane`: Axum API server and orchestration logic
+- `dlp-control-plane`: Axum API server and orchestration logic
 - `scheduler`: job placement and dispatch
 - `artifact-service`: artifact metadata and storage integration
 - `worker-gateway`: worker registration, heartbeats, and command delivery
@@ -223,8 +223,8 @@ An initial service layout can be:
 - `dlp-client`: shared HTTP transport used by CLI, UI, and worker binaries
 - `cli`: command-style interface built on `dlp-client` and `dlp-api`
 - `repl`: interactive shell built on `dlp-client`, `dlp-api`, and CLI command primitives
-- `ui`: Leptos frontend packaged with Tauri
-- `workers/*`: framework-specific runtime workers such as the current `pytorch-worker` stub and future runtime-specific binaries
+- `dlp-ui`: Leptos frontend packaged with Tauri
+- `workers/*`: framework-specific runtime workers such as the current `dlp-worker-pytorch` stub and future runtime-specific binaries
 
 These may start as modules in a single deployable backend and split into separate services later if scale requires it.
 

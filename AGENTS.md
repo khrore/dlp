@@ -4,16 +4,16 @@
 
 This repository is a Rust workspace rooted at `Cargo.toml`. Main crates live under `crates/`:
 
-- `crates/app-config`: Figment-based config loading
-- `crates/control-plane`: Axum server, application layer, and API entrypoint
+- `crates/dlp-config`: Figment-based config loading
+- `crates/dlp-control-plane`: Axum server, application layer, and API entrypoint
 - `crates/dlp-domain`: core domain model and invariants
 - `crates/dlp-api`: shared HTTP and worker API DTOs
 - `crates/dlp-client`: shared HTTP transport client for CLI, UI, and workers
 - `crates/dlp`: shared CLI and REPL client
-- `crates/pytorch-worker`: stub PyTorch worker binary used to exercise the control plane
-- `crates/ui`: Leptos browser UI compiled to WASM
+- `crates/dlp-worker-pytorch`: stub PyTorch worker binary used to exercise the control plane
+- `crates/dlp-ui`: Leptos browser UI compiled to WASM
 
-Docs belong in `docs/`. Generated UI assets currently land in `crates/ui/dist/`; avoid manual edits there unless the task is specifically about built output.
+Docs belong in `docs/`. Generated UI assets currently land in `crates/dlp-ui/dist/`; avoid manual edits there unless the task is specifically about built output.
 
 ## Build, Test, and Development Commands
 
@@ -24,9 +24,9 @@ Prefer flake entrypoints so agents use the pinned toolchain and dependencies:
 - `nix run .#test`: run unit and integration-style crate tests
 - `nix run .#build`: build native workspace crates and compile the UI for `wasm32-unknown-unknown`
 - `nix run .#check`: run the full `nix flake check` validation set
-- `nix run .#control-plane`: start the API server
+- `nix run .#dlp-control-plane`: start the API server
 - `nix run .#dlp -- health`: run the CLI health check
-- `nix run .#ui-dev`: start the Trunk dev server for `crates/ui`
+- `nix run .#dlp-ui-dev`: start the Trunk dev server for `crates/dlp-ui`
 
 Configuration loads from `config.toml` (searched upward) or `DLP_CONFIG_PATH`, with `DLP_CONTROL_PLANE_SERVER_*`, `DLP_DLP_API_*`, and `DLP_UI_API_*` overrides.
 
@@ -36,7 +36,7 @@ Repository-specific agent rules may live under `.rules/`. When a task touches pe
 
 ## Agent Execution with Nix
 
-When an agent needs to run validation, builds, or repository services, use `nix run .#<app>` from the repo root. Valid app attrs are `fmt`, `clippy`, `test`, `build`, `check`, `dlp`, `control-plane`, and `ui-dev`. Do not use bare host `cargo`, `rustfmt`, or `clippy` for repository workflows unless the task explicitly requires debugging outside the flake toolchain.
+When an agent needs to run validation, builds, or repository services, use `nix run .#<app>` from the repo root. Valid app attrs are `fmt`, `clippy`, `test`, `build`, `check`, `dlp`, `dlp-control-plane`, and `dlp-ui-dev`. Do not use bare host `cargo`, `rustfmt`, or `clippy` for repository workflows unless the task explicitly requires debugging outside the flake toolchain.
 
 ## Coding Style & Naming Conventions
 

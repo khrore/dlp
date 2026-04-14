@@ -1,4 +1,4 @@
-use app_config::{DlpConfig, load_dlp_config};
+use dlp_config::{DlpConfig, load_dlp_config};
 
 use crate::{Result, args::Args};
 

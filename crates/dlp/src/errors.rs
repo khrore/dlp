@@ -1,7 +1,7 @@
 use std::{io::Error as IoError, result::Result as StdResult};
 
-use app_config::ConfigError;
 use dlp_client::ClientError;
+use dlp_config::ConfigError;
 
 /// Result alias for CLI operations.
 pub type Result<T> = StdResult<T, CliError>;

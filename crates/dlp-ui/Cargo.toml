@@ -1,8 +1,8 @@
 [package]
-name = "pytorch-worker"
+name = "dlp-ui"
 version.workspace = true
 edition.workspace = true
-description = "Stub PyTorch worker implementation for DLP."
+description = "Leptos web UI for DLP."
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
@@ -12,12 +12,14 @@ categories.workspace = true
 [lints]
 workspace = true
 
-[dependencies]
-clap.workspace = true
-dlp-api = { path = "../dlp-api" }
-dlp-client = { path = "../dlp-client" }
-thiserror.workspace = true
-tokio.workspace = true
+[lib]
+name = "dlp_ui"
+crate-type = ["cdylib", "rlib"]
 
-[dev-dependencies]
-control-plane = { path = "../control-plane" }
+[dependencies]
+console_error_panic_hook.workspace = true
+dlp-client = { path = "../dlp-client" }
+leptos.workspace = true
+
+[build-dependencies]
+dlp-config = { path = "../dlp-config" }

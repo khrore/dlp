@@ -6,12 +6,12 @@
 
 use console_error_panic_hook as _;
 use dlp_client as _;
+use dlp_ui as _;
+#[cfg(target_arch = "wasm32")]
+use dlp_ui::App;
 use leptos as _;
 #[cfg(target_arch = "wasm32")]
 use leptos::prelude::*;
-use ui_app as _;
-#[cfg(target_arch = "wasm32")]
-use ui_app::App;
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
@@ -26,9 +26,9 @@ fn main() -> std::process::ExitCode {
     let mut stderr = io::stderr().lock();
     let _ignored = stderr.write_all(
         concat!(
-            "`ui` is currently configured as a browser/WASM frontend. ",
+            "`dlp-ui` is currently configured as a browser/WASM frontend. ",
             "Build it for `wasm32-unknown-unknown` and run it with a web host, ",
-            "or add a Tauri/native entrypoint before using `cargo run -p ui`.\n"
+            "or add a Tauri/native entrypoint before using `cargo run -p dlp-ui`.\n"
         )
         .as_bytes(),
     );

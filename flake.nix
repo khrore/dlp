@@ -75,13 +75,13 @@
         ) projectRoot;
 
         uiAssetDirs = lib.fileset.unions [
-          (lib.fileset.maybeMissing ./crates/ui/assets)
-          (lib.fileset.maybeMissing ./crates/ui/public)
-          (lib.fileset.maybeMissing ./crates/ui/static)
+          (lib.fileset.maybeMissing ./crates/dlp-ui/assets)
+          (lib.fileset.maybeMissing ./crates/dlp-ui/public)
+          (lib.fileset.maybeMissing ./crates/dlp-ui/static)
         ];
         appConfigCrate = lib.fileset.unions [
-          ./crates/app-config/Cargo.toml
-          ./crates/app-config/src
+          ./crates/dlp-config/Cargo.toml
+          ./crates/dlp-config/src
         ];
 
         workspaceSrc = lib.fileset.toSource {
@@ -127,7 +127,7 @@
 
         nativeCommonArgs = commonArgs // {
           src = workspaceSrc;
-          cargoExtraArgs = "--workspace --exclude ui";
+          cargoExtraArgs = "--workspace --exclude dlp-ui";
         };
 
         nativeCargoArtifacts = craneLib.buildDepsOnly nativeCommonArgs;
@@ -145,15 +145,15 @@
           nativeCommonArgs
           // {
             cargoArtifacts = nativeCargoArtifacts;
-            cargoExtraArgs = "--package control-plane";
-            pname = "control-plane";
+            cargoExtraArgs = "--package dlp-control-plane";
+            pname = "dlp-control-plane";
           }
         );
 
         uiCommonArgs = commonArgs // {
           src = uiSrc;
-          pname = "ui";
-          cargoExtraArgs = "--package ui";
+          pname = "dlp-ui";
+          cargoExtraArgs = "--package dlp-ui";
           CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
         };
 
@@ -171,7 +171,7 @@
             cargoArtifacts = uiCargoArtifacts;
             trunkIndexPath = "index.html";
             preBuild = ''
-              cd crates/ui
+              cd crates/dlp-ui
             '';
             postBuild = ''
               mv dist ../..
@@ -181,17 +181,17 @@
         );
 
         uiDev = pkgs.writeShellApplication {
-          name = "ui-dev";
+          name = "dlp-ui-dev";
           runtimeInputs = [
             rustToolchain
             pkgs.trunk
             wasmBindgenCli
           ];
           text = ''
-            if [ -d "$PWD/crates/ui" ]; then
-              cd "$PWD/crates/ui"
+            if [ -d "$PWD/crates/dlp-ui" ]; then
+              cd "$PWD/crates/dlp-ui"
             else
-              echo "ui-dev must be run from the repository root" >&2
+              echo "dlp-ui-dev must be run from the repository root" >&2
               exit 1
             fi
             unset NO_COLOR
@@ -248,8 +248,8 @@
               exit 1
             fi
 
-            cargo build --workspace --exclude ui "$@"
-            cargo build -p ui --target wasm32-unknown-unknown "$@"
+            cargo build --workspace --exclude dlp-ui "$@"
+            cargo build -p dlp-ui --target wasm32-unknown-unknown "$@"
           '';
         };
 
@@ -279,7 +279,7 @@
           dlp = flake-utils.lib.mkApp {
             drv = dlp;
           };
-          control-plane = flake-utils.lib.mkApp {
+          dlp-control-plane = flake-utils.lib.mkApp {
             drv = controlPlane;
           };
           fmt = flake-utils.lib.mkApp {
@@ -288,21 +288,23 @@
           test = flake-utils.lib.mkApp {
             drv = test;
           };
-          ui-dev = flake-utils.lib.mkApp {
+          dlp-ui-dev = flake-utils.lib.mkApp {
             drv = uiDev;
           };
           default = self.apps.${system}.dlp;
         };
 
         packages = {
-          inherit dlp ui;
-          control-plane = controlPlane;
+          inherit dlp;
+          dlp-ui = ui;
+          dlp-control-plane = controlPlane;
           default = dlp;
         };
 
         checks = {
-          inherit dlp ui;
-          control-plane = controlPlane;
+          inherit dlp;
+          dlp-ui = ui;
+          dlp-control-plane = controlPlane;
           cargo-fmt = craneLib.cargoFmt {
             inherit src;
             pname = "dlp-workspace";

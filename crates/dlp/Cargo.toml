@@ -13,7 +13,7 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-app-config = { path = "../app-config" }
+dlp-config = { path = "../dlp-config" }
 clap.workspace = true
 dlp-api = { path = "../dlp-api" }
 dlp-client = { path = "../dlp-client" }
@@ -21,4 +21,4 @@ thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-control-plane = { path = "../control-plane" }
+dlp-control-plane = { path = "../dlp-control-plane" }
