@@ -213,7 +213,7 @@ The primary GUI should be built with `Leptos`.
 
 Recommended client model:
 
-- shared domain client and API bindings used by CLI, REPL, and GUI
+- shared wire DTOs in `dlp-api` plus shared HTTP transport in `dlp-client` used by CLI, REPL, and GUI
 - CLI commands for automation-friendly workflows such as `submit`, `status`, `logs`, `artifacts`, and `workers`
 - REPL commands that reuse the CLI command model but add session state, shortcuts, discovery, and guided interaction
 - shared UI and app logic in Leptos
@@ -230,11 +230,13 @@ An initial service layout can be:
 - `scheduler`: job placement and dispatch
 - `artifact-service`: artifact metadata and storage integration
 - `worker-gateway`: worker registration, heartbeats, and command delivery
-- `client-sdk`: shared API bindings, auth flows, transport, and domain operations for all clients
-- `cli`: command-style interface built on the shared client SDK
-- `repl`: interactive shell built on the shared client SDK and CLI command primitives
+- `dlp-domain`: internal domain model and invariants shared within backend logic
+- `dlp-api`: shared wire DTOs for HTTP and worker-facing APIs
+- `dlp-client`: shared HTTP transport used by CLI, UI, and worker binaries
+- `cli`: command-style interface built on `dlp-client` and `dlp-api`
+- `repl`: interactive shell built on `dlp-client`, `dlp-api`, and CLI command primitives
 - `ui`: Leptos frontend packaged with Tauri
-- `workers/*`: framework-specific runtime workers
+- `workers/*`: framework-specific runtime workers such as the current `pytorch-worker` stub and future runtime-specific binaries
 
 These may start as modules in a single deployable backend and split into separate services later if scale requires it.
 

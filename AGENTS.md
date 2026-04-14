@@ -4,10 +4,13 @@
 
 This repository is a Rust workspace rooted at `Cargo.toml`. Main crates live under `crates/`:
 
-- `crates/control-plane`: Axum server and API entrypoint
-- `crates/dlp`: shared CLI and REPL client
-- `crates/client-sdk`: request/response models and transport client
 - `crates/app-config`: Figment-based config loading
+- `crates/control-plane`: Axum server, application layer, and API entrypoint
+- `crates/dlp-domain`: core domain model and invariants
+- `crates/dlp-api`: shared HTTP and worker API DTOs
+- `crates/dlp-client`: shared HTTP transport client for CLI, UI, and workers
+- `crates/dlp`: shared CLI and REPL client
+- `crates/pytorch-worker`: stub PyTorch worker binary used to exercise the control plane
 - `crates/ui`: Leptos browser UI compiled to WASM
 
 Docs belong in `docs/`. Generated UI assets currently land in `crates/ui/dist/`; avoid manual edits there unless the task is specifically about built output.
