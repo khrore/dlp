@@ -55,9 +55,9 @@ impl ControlPlaneService {
         let mut deployment = Deployment::new(
             deployment_id.clone(),
             request.name,
-            mappers::artifact_ref_from_string(request.artifact_ref)?,
+            mappers::artifact_ref_from_string(&request.artifact_ref)?,
             request.replicas_desired,
-            mappers::requirement_from_dto(request.requirement)?,
+            mappers::requirement_from_dto(&request.requirement)?,
         );
         let mut replicas = Vec::with_capacity(
             usize::try_from(deployment.replicas_desired()).unwrap_or(usize::MAX),
@@ -111,7 +111,7 @@ impl ControlPlaneService {
         let capabilities = request
             .capabilities
             .into_iter()
-            .map(mappers::capability_from_dto)
+            .map(|dto| mappers::capability_from_dto(&dto))
             .collect::<dlp_domain::DomainResult<Vec<_>>>()?;
         let worker = Worker::new(worker_id.clone(), request.display_name, capabilities);
         self.state
@@ -167,7 +167,7 @@ impl ControlPlaneService {
             .update_replica_status(
                 replica_id,
                 &request_lease_id,
-                mappers::replica_state_from_dto(request.state),
+                mappers::replica_state_from_dto(&request.state),
                 request.status_message,
             )
             .await?

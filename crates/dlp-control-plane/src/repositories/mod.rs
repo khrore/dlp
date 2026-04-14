@@ -7,8 +7,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use dlp_api::workers::WorkerAssignmentDto;
 use dlp_domain::{
-    Deployment, DeploymentId, DomainError, Lease, LeaseId, Replica, ReplicaId, ReplicaState,
-    Worker, WorkerId, WorkerState,
+    Deployment, DeploymentId, Lease, LeaseId, Replica, ReplicaId, ReplicaState, Worker, WorkerId,
+    WorkerState,
 };
 
 /// Internal storage adapters used by the control plane.
@@ -244,20 +244,4 @@ pub trait StorageBackend: Send + Sync {
         worker_id: &WorkerId,
         elapsed: Duration,
     ) -> Result<bool>;
-}
-
-#[expect(
-    dead_code,
-    reason = "Reserved helper for future repository transition validation."
-)]
-fn invalid_state_transition(
-    entity: &'static str,
-    from: &impl ToString,
-    to: &impl ToString,
-) -> DomainError {
-    DomainError::InvalidStateTransition {
-        entity,
-        from: from.to_string(),
-        to: to.to_string(),
-    }
 }

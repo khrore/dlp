@@ -1,9 +1,3 @@
-#![expect(
-    clippy::needless_pass_by_value,
-    reason = "DTO and enum mapping helpers intentionally consume owned values from request/ORM \
-              layers."
-)]
-
 use dlp_api::{
     deployments::{DeploymentDto, DeploymentStatusSummaryDto},
     replicas::{ReplicaDto, ReplicaState as ReplicaStateDto},
@@ -124,14 +118,14 @@ pub fn assignment_to_dto(
 ///
 /// Returns an error when the DTO contains invalid runtime, architecture, or
 /// other domain values.
-pub fn requirement_from_dto(dto: WorkloadRequirementDto) -> DomainResult<WorkloadRequirement> {
+pub fn requirement_from_dto(dto: &WorkloadRequirementDto) -> DomainResult<WorkloadRequirement> {
     Ok(WorkloadRequirement::new(WorkloadRequirementSpec::new(
         WorkloadProfile::new(
-            framework_from_dto(dto.framework),
-            mode_from_dto(dto.mode),
-            device_from_dto(dto.device),
-            RuntimeName::new(dto.accelerator_runtime)?,
-            ArchitectureFamily::new(dto.architecture_family)?,
+            framework_from_dto(&dto.framework),
+            mode_from_dto(&dto.mode),
+            device_from_dto(&dto.device),
+            RuntimeName::new(dto.accelerator_runtime.clone())?,
+            ArchitectureFamily::new(dto.architecture_family.clone())?,
         ),
         dto.memory_requirement_bytes,
         dto.concurrency_requirement,
@@ -144,14 +138,14 @@ pub fn requirement_from_dto(dto: WorkloadRequirementDto) -> DomainResult<Workloa
 ///
 /// Returns an error when the DTO contains invalid runtime, architecture, or
 /// other domain values.
-pub fn capability_from_dto(dto: WorkerCapabilityDto) -> DomainResult<WorkerCapability> {
+pub fn capability_from_dto(dto: &WorkerCapabilityDto) -> DomainResult<WorkerCapability> {
     Ok(WorkerCapability::new(WorkerCapabilitySpec::new(
         WorkloadProfile::new(
-            framework_from_dto(dto.framework),
-            mode_from_dto(dto.mode),
-            device_from_dto(dto.device),
-            RuntimeName::new(dto.accelerator_runtime)?,
-            ArchitectureFamily::new(dto.architecture_family)?,
+            framework_from_dto(&dto.framework),
+            mode_from_dto(&dto.mode),
+            device_from_dto(&dto.device),
+            RuntimeName::new(dto.accelerator_runtime.clone())?,
+            ArchitectureFamily::new(dto.architecture_family.clone())?,
         ),
         dto.available_memory_bytes,
         dto.concurrency_slots,
@@ -163,12 +157,12 @@ pub fn capability_from_dto(dto: WorkerCapabilityDto) -> DomainResult<WorkerCapab
 /// # Errors
 ///
 /// Returns an error when the provided artifact reference is invalid.
-pub fn artifact_ref_from_string(value: String) -> DomainResult<ArtifactRef> {
-    ArtifactRef::new(value)
+pub fn artifact_ref_from_string(value: &str) -> DomainResult<ArtifactRef> {
+    ArtifactRef::new(value.to_owned())
 }
 
 /// Maps an API replica state into the domain replica state.
-pub const fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
+pub const fn replica_state_from_dto(state: &ReplicaStateDto) -> ReplicaState {
     match state {
         ReplicaStateDto::Assigned => ReplicaState::Assigned,
         ReplicaStateDto::Failed => ReplicaState::Failed,
@@ -181,7 +175,7 @@ pub const fn replica_state_from_dto(state: ReplicaStateDto) -> ReplicaState {
 }
 
 /// Maps an API worker state into the domain worker state.
-pub const fn worker_state_from_dto(state: WorkerStateDto) -> WorkerState {
+pub const fn worker_state_from_dto(state: &WorkerStateDto) -> WorkerState {
     match state {
         WorkerStateDto::Draining => WorkerState::Draining,
         WorkerStateDto::Lost => WorkerState::Lost,
@@ -220,7 +214,7 @@ const fn framework_to_dto(value: &Framework) -> FrameworkDto {
     }
 }
 
-const fn framework_from_dto(value: FrameworkDto) -> Framework {
+const fn framework_from_dto(value: &FrameworkDto) -> Framework {
     match value {
         FrameworkDto::Max => Framework::Max,
         FrameworkDto::Pytorch => Framework::Pytorch,
@@ -234,7 +228,7 @@ const fn mode_to_dto(value: &WorkloadMode) -> WorkloadModeDto {
     }
 }
 
-const fn mode_from_dto(value: WorkloadModeDto) -> WorkloadMode {
+const fn mode_from_dto(value: &WorkloadModeDto) -> WorkloadMode {
     match value {
         WorkloadModeDto::Inference => WorkloadMode::Inference,
         WorkloadModeDto::Training => WorkloadMode::Training,
@@ -250,7 +244,7 @@ const fn device_to_dto(value: &DeviceClass) -> DeviceClassDto {
     }
 }
 
-const fn device_from_dto(value: DeviceClassDto) -> DeviceClass {
+const fn device_from_dto(value: &DeviceClassDto) -> DeviceClass {
     match value {
         DeviceClassDto::AppleGpu => DeviceClass::AppleGpu,
         DeviceClassDto::Cpu => DeviceClass::Cpu,

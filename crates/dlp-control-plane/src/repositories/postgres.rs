@@ -6,19 +6,6 @@
     clippy::unused_trait_names,
     reason = "Trait imports are used for method resolution against SeaORM types."
 )]
-#![expect(
-    clippy::absolute_paths,
-    reason = "A few fully qualified helper paths are clearer inside the repository adapter."
-)]
-#![expect(
-    clippy::map_err_ignore,
-    reason = "The database layer intentionally normalizes conversion errors into adapter-specific \
-              messages."
-)]
-#![expect(
-    clippy::arithmetic_side_effects,
-    reason = "The repository only performs bounded counter math on validated lengths and indexes."
-)]
 
 use std::time::Duration;
 
@@ -34,12 +21,13 @@ use dlp_domain::{
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
-    EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set, TransactionTrait,
+    EntityTrait, IntoActiveModel, NotSet, QueryFilter, QueryOrder, Set, TransactionTrait,
 };
 
 use super::{StorageBackend, UpdateReplicaStatusResult};
 use crate::{
-    ControlPlaneError, Result, domain_services::scheduler::available_capacity_for_requirement,
+    ControlPlaneError, Result,
+    domain_services::scheduler::{available_capacity_for_requirement, worker_is_eligible},
 };
 
 mod ids {
@@ -495,11 +483,8 @@ impl StorageBackend for PostgresStorage {
                     let worker = worker_model.into_domain(worker_capabilities)?;
                     let deployment = deployment_model.into_domain()?;
                     let active_leases = load_active_leases_for_worker(txn, &worker_id).await?;
-                    let eligible = crate::domain_services::scheduler::worker_is_eligible(
-                        &worker,
-                        deployment.requirement(),
-                        &active_leases,
-                    );
+                    let eligible =
+                        worker_is_eligible(&worker, deployment.requirement(), &active_leases);
                     if !eligible {
                         return Ok(false);
                     }
@@ -633,7 +618,7 @@ impl StorageBackend for PostgresStorage {
     }
 
     async fn lost_worker_ids(&self, lost_timeout: Duration) -> Result<Vec<WorkerId>> {
-        let threshold = Utc::now() - chrono::Duration::from_std(lost_timeout)?;
+        let threshold = checked_sub_duration(Utc::now(), lost_timeout)?;
         worker_entity::Entity::find()
             .filter(worker_entity::Column::State.ne(WorkerState::Lost.to_string()))
             .filter(worker_entity::Column::LastHeartbeatAt.lte(threshold))
@@ -657,7 +642,7 @@ impl StorageBackend for PostgresStorage {
             return Ok(false);
         };
         let mut active = worker.into_active_model();
-        let adjusted = Utc::now() - chrono::Duration::from_std(elapsed)?;
+        let adjusted = checked_sub_duration(Utc::now(), elapsed)?;
         active.last_heartbeat_at = Set(adjusted);
         active.updated_at = Set(Utc::now());
         active.update(&self.db).await?;
@@ -812,24 +797,40 @@ where
 }
 
 fn parse_framework(value: &str) -> Result<Framework> {
-    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
-        entity: "framework",
-        value:  value.to_owned(),
-    })
+    value
+        .parse()
+        .map_err(|error| ControlPlaneError::InvalidValue {
+            entity: "framework",
+            value:  format!("{value} ({error})"),
+        })
+}
+
+fn checked_sub_duration(timestamp: DateTime<Utc>, elapsed: Duration) -> Result<DateTime<Utc>> {
+    let duration = chrono::Duration::from_std(elapsed)?;
+    timestamp
+        .checked_sub_signed(duration)
+        .ok_or_else(|| ControlPlaneError::InvalidValue {
+            entity: "timestamp adjustment",
+            value:  format!("{elapsed:?}"),
+        })
 }
 
 fn parse_mode(value: &str) -> Result<WorkloadMode> {
-    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
-        entity: "workload mode",
-        value:  value.to_owned(),
-    })
+    value
+        .parse()
+        .map_err(|error| ControlPlaneError::InvalidValue {
+            entity: "workload mode",
+            value:  format!("{value} ({error})"),
+        })
 }
 
 fn parse_device(value: &str) -> Result<DeviceClass> {
-    value.parse().map_err(|_| ControlPlaneError::InvalidValue {
-        entity: "device class",
-        value:  value.to_owned(),
-    })
+    value
+        .parse()
+        .map_err(|error| ControlPlaneError::InvalidValue {
+            entity: "device class",
+            value:  format!("{value} ({error})"),
+        })
 }
 
 fn parse_worker_state(value: &str) -> Result<WorkerState> {
@@ -1261,7 +1262,7 @@ impl worker_capability::ActiveModel {
         now: DateTime<Utc>,
     ) -> Result<Self> {
         Ok(Self {
-            id:                     sea_orm::NotSet,
+            id:                     NotSet,
             worker_id:              Set(worker_id.to_string()),
             framework:              Set(capability.framework().to_string()),
             mode:                   Set(capability.mode().to_string()),
@@ -1300,7 +1301,7 @@ impl worker_assignment::ActiveModel {
         now: DateTime<Utc>,
     ) -> Result<Self> {
         Ok(Self {
-            id:             sea_orm::NotSet,
+            id:             NotSet,
             worker_id:      Set(worker_id.to_string()),
             replica_id:     Set(replica_id.to_string()),
             lease_id:       Set(lease_id.to_string()),
